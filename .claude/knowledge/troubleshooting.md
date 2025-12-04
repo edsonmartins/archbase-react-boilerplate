@@ -6,45 +6,55 @@
 
 **Sintoma:** Formulário não renderiza ou aparece colapsado.
 
-**Causa:** Falta `innerRef` no ArchbaseFormTemplate ou uso incorreto do hook.
+**Causa:** Uso de `useElementSize` ou `useArchbaseSize` que causam loop de renderização infinito.
 
 **Solução:**
 ```typescript
-// CORRETO
-const { ref, height } = useArchbaseSize()
-const safeHeight = height > 0 ? height - 130 : 600
-
+// ✅ CORRETO: Usar ScrollArea com height: '100%'
 <ArchbaseFormTemplate
-  innerRef={ref}  // OBRIGATÓRIO!
-  // ...
+  dataSource={dataSource}
+  onCancel={handleCancel}
+  onAfterSave={handleAfterSave}
+  withBorder={false}
 >
-  <Paper withBorder style={{ height: safeHeight }}>
-    {/* conteúdo */}
-  </Paper>
+  <ScrollArea style={{ height: '100%' }}>
+    <LoadingOverlay visible={isLoading} />
+    <Grid>
+      {/* conteúdo */}
+    </Grid>
+  </ScrollArea>
 </ArchbaseFormTemplate>
+
+// ❌ ERRADO: NÃO usar useElementSize - causa loop infinito!
+// const { ref, height } = useElementSize()
+// <ArchbaseFormTemplate innerRef={ref}...>
 ```
 
 ### Tabela não aparece
 
-**Sintoma:** ArchbaseDataTable renderiza vazio mesmo com dados.
+**Sintoma:** ArchbaseDataGrid renderiza vazio mesmo com dados.
 
 **Causa:** Falta definir altura ou DataSource não está populado.
 
 **Solução:**
 ```typescript
-// Verificar se dados foram setados
+// ✅ CORRETO: Usar open() (NÃO setData!)
 useEffect(() => {
   if (data) {
-    dataSource.setData(data)  // Setar dados!
+    dataSource.open({ records: data })
   }
 }, [data])
 
+// ✅ CORRETO: Usar ArchbaseDataGrid (NÃO DataTable!)
 // Definir altura obrigatória
-<ArchbaseDataTable
+<ArchbaseDataGrid
   dataSource={dataSource}
-  columns={columns}
   height={400}  // OBRIGATÓRIO!
-/>
+>
+  <Columns>
+    <ArchbaseDataGridColumn dataField="name" header="Nome" size={200} dataType="text" />
+  </Columns>
+</ArchbaseDataGrid>
 ```
 
 ## Problemas de DataSource
@@ -61,8 +71,8 @@ useEffect(() => {
 dataSource.edit()
 dataSource.setFieldValue('name', 'Novo Nome')
 
-// Para novo registro
-dataSource.append({ active: true } as UserDto)
+// ✅ CORRETO: Para novo registro usar insert() (NÃO append!)
+dataSource.insert(UserDto.newInstance())
 ```
 
 ### Campos não atualizam na UI
@@ -88,12 +98,18 @@ dataSource.append({ active: true } as UserDto)
 
 **Solução:**
 ```typescript
-// Usar useState com função para criar uma única vez
+// ✅ CORRETO: Usar useArchbaseRemoteDataSource (recomendado para forms)
+const { dataSource, isLoading } = useArchbaseRemoteDataSource<UserDto, string>({
+  name: 'dsUser',
+  label: 'Usuário',
+  service: serviceApi,
+  store: templateStore,  // Usar store para persistir dados
+  // ...
+})
+
+// Alternativa: DataSource simples com useState
 const [dataSource] = useState(() =>
-  new ArchbaseDataSource<UserDto, string>({
-    name: 'dsUser',
-    initialData: []
-  })
+  new ArchbaseDataSource<UserDto, string>('dsUser')
 )
 ```
 
@@ -107,38 +123,58 @@ const [dataSource] = useState(() =>
 
 **Solução:**
 ```typescript
-// ERRADO
+// ❌ ERRADO
 <ArchbaseFormTemplate validator={validator}>
 
-// CORRETO - usar no DataSource
+// ✅ CORRETO: Usar useArchbaseRemoteDataSource com validator
+const validator = useArchbaseValidator()
+
+const { dataSource, isLoading } = useArchbaseRemoteDataSource<UserDto, string>({
+  name: 'dsUser',
+  validator,  // Passa o validator aqui!
+  // ...
+})
+
+// Alternativa: Configurar separadamente
 const [dataSource] = useState(() =>
-  new ArchbaseDataSource<UserDto, string>({
-    name: 'dsUser',
-    validator: new ArchbaseYupValidator(userSchema)  // Aqui!
-  })
+  new ArchbaseDataSource<UserDto, string>('dsUser')
 )
+
+useEffect(() => {
+  dataSource.setValidator(validator)
+}, [])
 ```
 
 ### Erros de validação não aparecem
 
 **Sintoma:** Formulário não mostra erros mesmo com dados inválidos.
 
-**Causa:** Validator não configurado ou validação não chamada.
+**Causa:** Validator não configurado ou mensagens de tradução não encontradas.
 
 **Solução:**
 ```typescript
-// 1. Configurar validator no DataSource
-const dataSource = new ArchbaseDataSource({
+// 1. Usar useArchbaseValidator e passar para useArchbaseRemoteDataSource
+const validator = useArchbaseValidator()
+
+const { dataSource } = useArchbaseRemoteDataSource<UserDto, string>({
   name: 'dsUser',
-  validator: new ArchbaseYupValidator(schema)
+  validator,  // ✅ Validator configurado
+  // ...
 })
 
-// 2. Chamar validate antes de salvar
-const handleSave = async () => {
-  const isValid = await dataSource.validate()
-  if (!isValid) return  // Erros serão exibidos automaticamente
-  // salvar...
-}
+// 2. Para mensagens de validação traduzidas (class-validator), usar:
+// No DTO:
+@IsNotEmpty({ message: 'gestor-rq-admin:O nome é obrigatório' })
+nome: string
+
+// No App.tsx, configurar translationName:
+<ArchbaseAdminMainLayout
+  translationName="gestor-rq-admin"  // ✅ Prefixo das traduções
+  // ...
+/>
+
+// 3. O ArchbaseFormTemplate chama validate() automaticamente ao salvar
+// Os erros serão exibidos automaticamente nos campos
 ```
 
 ## Problemas de Service
@@ -317,15 +353,17 @@ resolve: {
 3. Memoizar colunas
 
 ```typescript
+// ✅ CORRETO: Usar ArchbaseDataGrid (NÃO DataTable!)
 const columns = useMemo(() => [...], [])
 
-<ArchbaseDataTable
+<ArchbaseDataGrid
+  dataSource={dataSource}
   height={400}  // Altura fixa para virtualização
-  recordsPerPage={20}
-  page={page}
-  onPageChange={setPage}
-  totalRecords={total}
-/>
+>
+  <Columns>
+    <ArchbaseDataGridColumn dataField="name" header="Nome" size={200} dataType="text" />
+  </Columns>
+</ArchbaseDataGrid>
 ```
 
 ### Formulário lento ao digitar
@@ -333,13 +371,16 @@ const columns = useMemo(() => [...], [])
 **Solução:** Verificar re-renders desnecessários
 
 ```typescript
-// Memoizar componentes pesados
-const MemoizedTable = memo(ArchbaseDataTable)
+// ✅ Memoizar componentes pesados
+const MemoizedGrid = memo(ArchbaseDataGrid)
 
-// Evitar criar funções inline
+// ✅ Evitar criar funções inline
 const handleChange = useCallback((value) => {
   // ...
 }, [])
+
+// ❌ NÃO usar useElementSize no form - causa loop de renderização!
+// Use ScrollArea com height: '100%' ao invés
 ```
 
 ## Checklist de Debug
@@ -349,5 +390,6 @@ const handleChange = useCallback((value) => {
 3. **React DevTools:** Verificar props e state
 4. **Verificar imports:** CSS, reflect-metadata, tipos
 5. **Verificar IoC:** Services registrados
-6. **Verificar DataSource:** Estado (browsing/editing), dados setados
-7. **Verificar refs:** innerRef passado para templates
+6. **Verificar DataSource:** Estado (browsing/editing), dados carregados com `open()`
+7. **Verificar hooks corretos:** NÃO usar useElementSize em forms - usar ScrollArea
+8. **Verificar comparação de action:** Usar `action.toUpperCase() === 'ADD'` (case-insensitive)

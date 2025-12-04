@@ -346,14 +346,11 @@ import {
 ### ArchbaseFormTemplate
 Template para formulários.
 
-```typescript
-// CORRETO: useArchbaseSize retorna [width, height]
-const ref = useRef<HTMLDivElement>(null)
-const [width, height] = useArchbaseSize(ref)
-const safeHeight = height > 0 ? height - 130 : 600
+**IMPORTANTE**: NÃO use `useElementSize` - causa loop de renderização! Use CSS flexbox.
 
+```typescript
+// ✅ CORRETO: Sem useElementSize, usar ScrollArea com height: '100%'
 <ArchbaseFormTemplate
-  innerRef={ref}              // ESSENCIAL!
   title="Cadastro de Usuário"
   dataSource={dataSource}
   isLoading={isLoading}
@@ -361,13 +358,30 @@ const safeHeight = height > 0 ? height - 130 : 600
   error={error}
   withBorder={false}
   onCancel={handleCancel}
-  onBeforeSave={handleSave}
+  onAfterSave={handleAfterSave}
 >
-  <Paper ref={ref} withBorder style={{ height: safeHeight }}>
-    {/* Campos do form */}
-  </Paper>
+  <ScrollArea style={{ height: '100%' }}>
+    <LoadingOverlay visible={isLoading} />
+    <Grid>
+      <Grid.Col span={{ base: 12, sm: 8, md: 6 }}>
+        <Stack>
+          {/* Campos do form */}
+        </Stack>
+      </Grid.Col>
+    </Grid>
+  </ScrollArea>
 </ArchbaseFormTemplate>
+
+// ❌ ERRADO: useElementSize causa loop infinito!
+// const { ref, height } = useElementSize()
+// <ArchbaseFormTemplate innerRef={ref} ...>
+//   <Paper style={{ height: safeHeight }}>
 ```
+
+**Por quê evitar useElementSize?**
+- O `ArchbaseFormTemplate` usa `forceUpdate()` internamente após eventos do DataSource
+- O `useElementSize` detecta mudança de tamanho e causa re-render
+- Isso cria um loop: forceUpdate → render → size change → re-render → ...
 
 ### ArchbasePanelTemplate
 Template para listas/painéis.
@@ -393,18 +407,18 @@ Template para listas/painéis.
 
 ### Service Base
 
-**IMPORTANTE**: Requer implementação de `getId()` e `isNewRecord()`!
+**IMPORTANTE**: Requer implementação de `getId()`, `isNewRecord()` e `configureHeaders()`!
 
 ```typescript
 import { injectable, inject } from 'inversify'
 import { ArchbaseRemoteApiService } from '@archbase/data'
 import type { ArchbaseRemoteApiClient } from '@archbase/data'  // SEMPRE type import!
-import { ARCHBASE_IOC_API_TYPE } from '@archbase/core'
+import { API_TYPE } from '../../ioc/RapidexIOCTypes'
 
 @injectable()
 export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
   constructor(
-    @inject(ARCHBASE_IOC_API_TYPE.ApiClient) client: ArchbaseRemoteApiClient
+    @inject(API_TYPE.ApiClient) client: ArchbaseRemoteApiClient
   ) {
     super(client)
   }
@@ -414,22 +428,32 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
     return '/api/v1/users'
   }
 
+  // OBRIGATÓRIO: Headers (pode retornar vazio)
+  protected configureHeaders(): Record<string, string> {
+    return {}
+  }
+
+  // OPCIONAL: Transformar dados da API para DTO
+  protected transform(data: any): UserDto {
+    return new UserDto(data)
+  }
+
   // OBRIGATÓRIO: Extrair ID
   public getId(entity: UserDto): string {
-    return entity.id
+    return entity.id || ''
   }
 
-  // OBRIGATÓRIO: Verificar se é novo
+  // OBRIGATÓRIO: Verificar se é novo (usar __isNew!)
   public isNewRecord(entity: UserDto): boolean {
-    return !entity.id || entity.id === ''
-  }
-
-  // OBRIGATÓRIO: Headers
-  protected configureHeaders(): Record<string, string> {
-    return { 'Content-Type': 'application/json' }
+    return entity.__isNew === true  // ✅ Usar __isNew, NÃO verificar id vazio
   }
 }
 ```
+
+**IMPORTANTE sobre `isNewRecord()`:**
+- Use `entity.__isNew === true`
+- **NÃO** use `!entity.id || entity.id === ''` quando DTOs geram UUID no `newInstance()`
+- O campo `__isNew` é setado no DTO e indica explicitamente se é um registro novo
 
 ### Métodos Herdados
 ```typescript
@@ -459,73 +483,125 @@ const user = await userService.findOne(id)
 
 ## 6. Form Pattern Correto
 
+### Comparação de Action (IMPORTANTE!)
+
+**CRÍTICO**: As constantes de action no sistema são em **minúsculas** (`'add'`, `'edit'`, `'view'`), mas o padrão antigo usava maiúsculas. Para evitar bugs, **sempre use comparação case-insensitive**:
+
 ```typescript
-export function UserForm({ id, action, onClose }: FormProps) {
-  // CORRETO: useArchbaseSize retorna [width, height]
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, height] = useArchbaseSize(ref)
-  const safeHeight = height > 0 ? height - 130 : 600
+// CORRETO: Comparação case-insensitive
+const isAddAction = action.toUpperCase() === 'ADD'
+const isEditAction = action.toUpperCase() === 'EDIT'
+const isViewAction = action.toUpperCase() === 'VIEW'
 
-  // CORRETO: construtor simples
-  const [dataSource] = useState(() =>
-    new ArchbaseDataSource<UserDto, string>('dsUser')
-  )
+// ERRADO: Comparação direta pode falhar se action vier em minúsculas
+// if (action === 'ADD') { ... }  // ❌ Falha se action === 'add'
+```
 
-  const userService = useArchbaseRemoteServiceApi<UserService>(API_TYPE.UserService)
+### Exemplo Completo (Padrão useArchbaseRemoteDataSource)
 
-  // CORRETO: usar findOne, não findById
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['user', id],
-    queryFn: () => userService.findOne(id!),
-    enabled: !!id && action !== 'NEW'
+```typescript
+import { ScrollArea, Grid, Stack, LoadingOverlay } from '@mantine/core'
+import { useArchbaseRemoteDataSource, useArchbaseRemoteServiceApi, useArchbaseStore } from '@archbase/data'
+import { ArchbaseFormTemplate } from '@archbase/template'
+import { ArchbaseDialog, ArchbaseNotifications, ArchbaseEdit } from '@archbase/components'
+import { useArchbaseNavigationListener } from '@archbase/admin'
+
+export function UserForm() {
+  const { t } = useArchbaseTranslation()
+  const location = useLocation()
+  const { id } = useParams()
+  const validator = useArchbaseValidator()
+  const [searchParams] = useSearchParams()
+  const action = searchParams.get('action') || ''
+
+  // Store com nome fixo (NÃO usar ID dinâmico para evitar problemas)
+  const templateStore = useArchbaseStore('userFormStore')
+  const { closeAllowed } = useArchbaseNavigationListener(location.pathname, () => {
+    templateStore.clearAllValues()
+    closeAllowed()
   })
+  const serviceApi = useArchbaseRemoteServiceApi<UserService>(API_TYPE.User)
 
-  const saveMutation = useMutation({
-    mutationFn: (user: UserDto) => userService.save(user),
-    onSuccess: () => {
-      dataSource.save()  // NÃO use post()!
-      onClose()
+  // CORRETO: Comparação case-insensitive para action
+  const isAddAction = action.toUpperCase() === 'ADD'
+  const isEditAction = action.toUpperCase() === 'EDIT'
+  const isViewAction = action.toUpperCase() === 'VIEW'
+
+  // CORRETO: useArchbaseRemoteDataSource com onLoadComplete
+  const { dataSource, isLoading } = useArchbaseRemoteDataSource<UserDto, string>({
+    name: 'dsUser',
+    label: String(t('gestor-rq-admin:Usuário')),
+    service: serviceApi,
+    store: templateStore,
+    pageSize: 50,
+    loadOnStart: !isAddAction,
+    validator,
+    id: isEditAction || isViewAction ? id : undefined,
+    onLoadComplete: (dataSource) => {
+      // ✅ SEM forceUpdate() - NÃO é necessário!
+      if (action.toUpperCase() === 'EDIT') {
+        dataSource.edit()
+      } else if (action.toUpperCase() === 'ADD') {
+        const newRecord = UserDto.newInstance()  // ✅ Usa __isNew: true e UUID
+        dataSource.insert(newRecord)
+      }
+    },
+    onError: (error, origin) => {
+      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error, origin)
     }
   })
 
-  useEffect(() => {
-    if (data) {
-      dataSource.open({ records: [data] })  // NÃO use setData()!
-      if (action === 'EDIT') dataSource.edit()
-    } else if (action === 'NEW') {
-      dataSource.insert({ active: true } as UserDto)  // NÃO use append()!
-    }
-  }, [data, action])
-
-  const handleSave = async () => {
-    const errors = dataSource.validate()
-    if (errors && errors.length > 0) return
-    const current = dataSource.getCurrentRecord()
-    if (current) saveMutation.mutate(current)
+  const handleAfterSave = () => {
+    templateStore.clearAllValues()
+    closeAllowed()
   }
 
-  const isViewOnly = action === 'VIEW'
+  const handleCancel = () => {
+    if (!isViewAction) {
+      ArchbaseDialog.showConfirmDialogYesNo(
+        String(t('gestor-rq-admin:Confirme')),
+        String(t('gestor-rq-admin:Deseja cancelar?')),
+        () => {
+          if (!dataSource.isBrowsing()) {
+            dataSource.cancel()
+          }
+          templateStore.clearAllValues()
+          closeAllowed()
+        },
+        () => { }
+      )
+    } else {
+      templateStore.clearAllValues()
+      closeAllowed()
+    }
+  }
 
+  // ✅ CORRETO: Sem useElementSize, usar ScrollArea
   return (
     <ArchbaseFormTemplate
-      innerRef={ref}
-      title={action === 'NEW' ? 'Novo Usuário' : 'Editar Usuário'}
+      title={String(t('gestor-rq-admin:Usuário'))}
       dataSource={dataSource}
-      isLoading={isLoading || saveMutation.isPending}
-      onCancel={onClose}
-      onBeforeSave={handleSave}
+      onCancel={handleCancel}
+      onAfterSave={handleAfterSave}
+      withBorder={false}
     >
-      <Paper ref={ref} withBorder style={{ height: safeHeight }}>
-        <Box p="md">
-          <ArchbaseEdit
-            dataSource={dataSource}
-            dataField="name"
-            label="Nome"
-            required
-            readOnly={isViewOnly}
-          />
-        </Box>
-      </Paper>
+      <ScrollArea style={{ height: '100%' }}>
+        <LoadingOverlay visible={isLoading} />
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 8, md: 6 }}>
+            <Stack>
+              <ArchbaseEdit<UserDto, string>
+                label={String(t('gestor-rq-admin:Nome'))}
+                dataSource={dataSource}
+                dataField="nome"
+                placeholder={String(t('gestor-rq-admin:Digite o nome'))}
+                required
+              />
+              {/* Mais campos... */}
+            </Stack>
+          </Grid.Col>
+        </Grid>
+      </ScrollArea>
     </ArchbaseFormTemplate>
   )
 }
@@ -556,20 +632,98 @@ export function UserForm({ id, action, onClose }: FormProps) {
 | `<ArchbaseNumberEdit min max decimalScale` | `minValue maxValue precision` |
 | `{ ref, height } = useArchbaseSize()` | `[width, height] = useArchbaseSize(ref)` |
 | Sem getId/isNewRecord | `getId()` e `isNewRecord()` são OBRIGATÓRIOS |
+| `action === 'ADD'` (direta) | `action.toUpperCase() === 'ADD'` (case-insensitive) |
+| `forceUpdate()` no onLoadComplete | **NÃO usar** - causa loop de renderização |
+| DTO sem UUID no newInstance() | Sempre gerar `id: uuidv4()` no newInstance() |
+| DTO sem `__isNew` | Adicionar `__isNew: true` no newInstance() |
+| `isNewRecord` verificando id vazio | Usar `entity.__isNew === true` |
+| `useElementSize` no form | **NÃO usar** - usar `ScrollArea` com `height: '100%'` |
+| `innerRef={ref}` no FormTemplate | **NÃO usar** quando não precisa medir altura |
+| Store com ID dinâmico `store${id}` | Usar nome fixo `'formStore'` |
 
 ---
 
-## 8. Checklist de Desenvolvimento
+## 8. DTOs - Padrões Importantes
 
-### Forms
-- [ ] Usar `const ref = useRef(); [width, height] = useArchbaseSize(ref)`
-- [ ] Calcular `safeHeight = height - 130`
-- [ ] Passar `innerRef={ref}` para ArchbaseFormTemplate
-- [ ] DataSource com construtor simples: `new ArchbaseDataSource('name')`
-- [ ] Carregar dados com `dataSource.open({ records: [...] })`
-- [ ] Novo registro com `dataSource.insert({...})`
-- [ ] Confirmar com `dataSource.save()`
+### Campo `__isNew` e Geração de UUID (CRÍTICO!)
+
+**SEMPRE** inclua o campo `__isNew` e gere um UUID no método `newInstance()` dos DTOs:
+
+```typescript
+import { v4 as uuidv4 } from 'uuid'
+import { IsOptional, IsBoolean, IsString } from 'class-validator'
+
+export class EntityDto {
+  @IsOptional()
+  @IsString()
+  id?: string
+
+  @IsOptional()
+  @IsBoolean()
+  __isNew?: boolean  // ✅ CAMPO OBRIGATÓRIO para identificar novos registros
+
+  // ...outros campos...
+
+  constructor(data: any = {}) {
+    this.id = data.id
+    this.__isNew = data.__isNew ?? false  // ✅ Default false para registros existentes
+    // ...outros campos...
+  }
+
+  static newInstance = () => {
+    return new EntityDto({
+      id: uuidv4(),      // ✅ Gerar UUID para o ID
+      __isNew: true,     // ✅ Marcar como novo registro
+      // ...outros campos padrão...
+      ativo: true
+    })
+  }
+}
+```
+
+**Por quê?**
+- O `id` é gerado com UUID para evitar colisões no backend
+- O `__isNew` é usado pelo `isNewRecord()` do Service para decidir se faz POST ou PUT
+- Sem `__isNew`, o sistema não consegue distinguir um registro novo de um existente
+
+### NÃO usar forceUpdate() no onLoadComplete (CRÍTICO!)
+
+O `forceUpdate()` dentro do callback `onLoadComplete` causa **loop de renderização infinito**:
+
+```typescript
+// ❌ ERRADO - Causa loop infinito!
+onLoadComplete: (dataSource) => {
+  if (isEditAction) {
+    dataSource.edit()
+  }
+  forceUpdate()  // ❌ NÃO FAZER ISSO!
+}
+
+// ✅ CORRETO - O DataSource notifica automaticamente
+onLoadComplete: (dataSource) => {
+  if (isEditAction) {
+    dataSource.edit()
+  }
+  // Sem forceUpdate() - não é necessário
+}
+```
+
+**Por quê?** O `ArchbaseDataSource` já notifica os componentes automaticamente quando seu estado muda.
+
+---
+
+## 9. Checklist de Desenvolvimento
+
+### Forms (usando useArchbaseRemoteDataSource)
+- [ ] **CRÍTICO**: NÃO usar `useElementSize` - causa loop de renderização!
+- [ ] Usar `ScrollArea` com `style={{ height: '100%' }}` para scroll
+- [ ] Usar `useArchbaseStore('nomeFixo')` - NÃO usar ID dinâmico
+- [ ] Usar `useArchbaseRemoteDataSource` com `onLoadComplete`
+- [ ] **CRÍTICO**: NÃO usar `forceUpdate()` no `onLoadComplete`
+- [ ] **CRÍTICO**: Comparar action com `toUpperCase()` (ex: `action.toUpperCase() === 'ADD'`)
+- [ ] No `onLoadComplete`: chamar `dataSource.edit()` para EDIT, `dataSource.insert(Dto.newInstance())` para ADD
 - [ ] Todos os campos com `dataSource` e `dataField`
+- [ ] Usar `onAfterSave` para limpar store e fechar
 
 ### Views/Grids
 - [ ] Usar `ArchbaseDataGrid` (não DataTable)
@@ -580,8 +734,11 @@ export function UserForm({ id, action, onClose }: FormProps) {
 
 ### Services
 - [ ] `type` import para `ArchbaseRemoteApiClient`
+- [ ] Implementar `getEndpoint()` - OBRIGATÓRIO
+- [ ] Implementar `configureHeaders()` - OBRIGATÓRIO (pode retornar `{}`)
 - [ ] Implementar `getId(entity)` - OBRIGATÓRIO
-- [ ] Implementar `isNewRecord(entity)` - OBRIGATÓRIO
+- [ ] Implementar `isNewRecord(entity)` usando `entity.__isNew === true` - OBRIGATÓRIO
+- [ ] OPCIONAL: `transform(data)` para converter API → DTO
 - [ ] Usar `findOne()` (não findById)
 - [ ] Endpoint no plural (`/api/v1/users`)
 
@@ -589,3 +746,10 @@ export function UserForm({ id, action, onClose }: FormProps) {
 - [ ] Usar `options` + `getOptionLabel` + `getOptionValue` (não `data`)
 - [ ] ArchbaseAsyncSelect: usar `getOptions` (não `onSearch`)
 - [ ] ArchbaseLookupEdit: usar `lookupValueDelegator` (não lookupDataSource)
+
+### DTOs
+- [ ] Importar `import { v4 as uuidv4 } from 'uuid'`
+- [ ] **CRÍTICO**: Adicionar campo `__isNew?: boolean`
+- [ ] No construtor: `this.__isNew = data.__isNew ?? false`
+- [ ] **CRÍTICO**: No `newInstance()`: `id: uuidv4()` e `__isNew: true`
+- [ ] Definir valores padrão sensatos (ativo: true, etc.)

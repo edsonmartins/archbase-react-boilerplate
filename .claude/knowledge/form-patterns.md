@@ -1,107 +1,114 @@
 # Archbase Form Patterns - Guia Completo
 
-## Estrutura Base do Formulário
+## Estrutura Base do Formulário (Padrão useArchbaseRemoteDataSource)
 
-Todo formulário Archbase segue este padrão:
+**IMPORTANTE**: Este é o padrão recomendado. **NÃO use** `useElementSize` ou `useArchbaseSize` em formulários - causa loop de renderização infinito!
 
 ```typescript
-import { useState, useEffect, useRef } from 'react'
-import { Paper, Box, Group } from '@mantine/core'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArchbaseDataSource } from '@archbase/data'
-import { ArchbaseValidator, ArchbaseEdit } from '@archbase/components'
-import { ArchbaseFormTemplate, useArchbaseSize } from '@archbase/template'
-import { useArchbaseRemoteServiceApi } from '@archbase/data'
-import * as yup from 'yup'
+import { ScrollArea, Grid, Stack, LoadingOverlay } from '@mantine/core'
+import { useArchbaseRemoteDataSource, useArchbaseRemoteServiceApi, useArchbaseStore } from '@archbase/data'
+import { ArchbaseFormTemplate } from '@archbase/template'
+import { ArchbaseDialog, ArchbaseNotifications, ArchbaseEdit } from '@archbase/components'
+import { useArchbaseValidator, useArchbaseTranslation } from '@archbase/core'
+import { useArchbaseNavigationListener } from '@archbase/admin'
+import { useLocation, useParams } from 'react-router'
+import { useSearchParams } from 'react-router-dom'
 
-// 1. Definir schema de validação
-const userSchema = yup.object({
-  name: yup.string().required('Nome obrigatório'),
-  email: yup.string().email('E-mail inválido').required('E-mail obrigatório')
-})
+export function UserForm() {
+  const { t } = useArchbaseTranslation()
+  const location = useLocation()
+  const { id } = useParams()
+  const validator = useArchbaseValidator()
+  const [searchParams] = useSearchParams()
+  const action = searchParams.get('action') || ''
 
-// 2. Definir props do form
-interface UserFormProps {
-  id?: string
-  action: 'NEW' | 'EDIT' | 'VIEW'
-  onClose: () => void
-}
-
-export function UserForm({ id, action, onClose }: UserFormProps) {
-  // 3. Hook de tamanho - CORRETO: useArchbaseSize retorna [width, height]
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, height] = useArchbaseSize(ref)
-  const safeHeight = height > 0 ? height - 130 : 600
-
-  // 4. DataSource com useState - construtor simples, apenas nome
-  const [dataSource] = useState(() =>
-    new ArchbaseDataSource<UserDto, string>('dsUser')
-  )
-
-  // 5. Configurar validador separadamente
-  useEffect(() => {
-    dataSource.setValidator(new ArchbaseValidator(userSchema))
-  }, [])
-
-  // 6. Service via IoC
-  const userService = useArchbaseRemoteServiceApi<UserService>(API_TYPE.UserService)
-  const queryClient = useQueryClient()
-
-  // 7. Query para carregar dados - CORRETO: findOne (não findById!)
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['user', id],
-    queryFn: () => userService.findOne(id!),
-    enabled: !!id && action !== 'NEW'
+  // 1. Store com nome fixo (NÃO usar ID dinâmico)
+  const templateStore = useArchbaseStore('userFormStore')
+  const { closeAllowed } = useArchbaseNavigationListener(location.pathname, () => {
+    templateStore.clearAllValues()
+    closeAllowed()
   })
+  const serviceApi = useArchbaseRemoteServiceApi<UserService>(API_TYPE.User)
 
-  // 8. Mutation para salvar
-  const saveMutation = useMutation({
-    mutationFn: (user: UserDto) => userService.save(user),
-    onSuccess: () => {
-      dataSource.save()  // CORRETO: save() (não post!)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      onClose()
+  // 2. CRÍTICO: Comparação case-insensitive para action
+  const isAddAction = action.toUpperCase() === 'ADD'
+  const isEditAction = action.toUpperCase() === 'EDIT'
+  const isViewAction = action.toUpperCase() === 'VIEW'
+
+  // 3. useArchbaseRemoteDataSource com onLoadComplete
+  const { dataSource, isLoading } = useArchbaseRemoteDataSource<UserDto, string>({
+    name: 'dsUser',
+    label: String(t('gestor-rq-admin:Usuário')),
+    service: serviceApi,
+    store: templateStore,
+    pageSize: 50,
+    loadOnStart: !isAddAction,
+    validator,
+    id: isEditAction || isViewAction ? id : undefined,
+    onLoadComplete: (dataSource) => {
+      // ✅ SEM forceUpdate() - NÃO é necessário!
+      if (action.toUpperCase() === 'EDIT') {
+        dataSource.edit()
+      } else if (action.toUpperCase() === 'ADD') {
+        const newRecord = UserDto.newInstance()  // ✅ Usa __isNew: true e UUID
+        dataSource.insert(newRecord)
+      }
+    },
+    onError: (error, origin) => {
+      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error, origin)
     }
   })
 
-  // 9. Effect para popular DataSource
-  useEffect(() => {
-    if (data) {
-      dataSource.open({ records: [data] })  // CORRETO: open() (não setData!)
-      if (action === 'EDIT') dataSource.edit()
-    } else if (action === 'NEW') {
-      dataSource.insert({ active: true } as UserDto)  // CORRETO: insert() (não append!)
-    }
-  }, [data, action])
-
-  // 10. Handler de save
-  const handleSave = async () => {
-    const isValid = await dataSource.validate()
-    if (!isValid) return
-    saveMutation.mutate(dataSource.getCurrentRecord())
+  const handleAfterSave = () => {
+    templateStore.clearAllValues()
+    closeAllowed()
   }
 
-  // 11. Flag de somente leitura
-  const isViewOnly = action === 'VIEW'
+  const handleCancel = () => {
+    if (!isViewAction) {
+      ArchbaseDialog.showConfirmDialogYesNo(
+        String(t('gestor-rq-admin:Confirme')),
+        String(t('gestor-rq-admin:Deseja cancelar?')),
+        () => {
+          if (!dataSource.isBrowsing()) {
+            dataSource.cancel()
+          }
+          templateStore.clearAllValues()
+          closeAllowed()
+        },
+        () => { }
+      )
+    } else {
+      templateStore.clearAllValues()
+      closeAllowed()
+    }
+  }
 
-  // 12. Render
+  // 4. ✅ CORRETO: Sem useElementSize, usar ScrollArea com height: '100%'
   return (
     <ArchbaseFormTemplate
-      innerRef={ref}                    // OBRIGATÓRIO
-      title={action === 'NEW' ? 'Novo Usuário' : 'Editar Usuário'}
       dataSource={dataSource}
-      isLoading={isLoading || saveMutation.isPending}
-      isError={isError}
-      error={error}
+      onCancel={handleCancel}
+      onAfterSave={handleAfterSave}
       withBorder={false}
-      onCancel={onClose}
-      onBeforeSave={handleSave}
     >
-      <Paper ref={ref} withBorder style={{ height: safeHeight }}>
-        <Box p="md">
-          {/* Campos do formulário */}
-        </Box>
-      </Paper>
+      <ScrollArea style={{ height: '100%' }}>
+        <LoadingOverlay visible={isLoading} />
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 8, md: 6 }}>
+            <Stack>
+              <ArchbaseEdit<UserDto, string>
+                label={String(t('gestor-rq-admin:Nome'))}
+                dataSource={dataSource}
+                dataField="nome"
+                placeholder={String(t('gestor-rq-admin:Digite o nome'))}
+                required
+              />
+              {/* Mais campos... */}
+            </Stack>
+          </Grid.Col>
+        </Grid>
+      </ScrollArea>
     </ArchbaseFormTemplate>
   )
 }
@@ -305,37 +312,38 @@ const roleOptions = [
 
 ```typescript
 import { ArchbaseDataGrid, ArchbaseDataGridColumn, Columns } from '@archbase/components'
+import { ScrollArea, Box, Group, Stack, Text } from '@mantine/core'
 
-function OrderForm({ id, action, onClose }: FormProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, height] = useArchbaseSize(ref)  // CORRETO: retorna tupla
-  const safeHeight = height > 0 ? height - 130 : 600
+function OrderForm() {
+  // ...setup similar ao padrão useArchbaseRemoteDataSource...
 
-  // DataSource do pedido (master)
-  const [dsOrder] = useState(() =>
-    new ArchbaseDataSource<OrderDto, string>('dsOrder')
-  )
+  // DataSource do pedido (master) - vem do useArchbaseRemoteDataSource
+  const { dataSource: dsOrder, isLoading } = useArchbaseRemoteDataSource<OrderDto, string>({
+    name: 'dsOrder',
+    // ...
+  })
 
-  // DataSource dos itens (detail)
+  // DataSource dos itens (detail) - criado separadamente
   const [dsItems] = useState(() =>
     new ArchbaseDataSource<OrderItemDto, string>('dsItems')
   )
 
+  // Quando order carrega, popular items
   useEffect(() => {
-    if (data) {
-      dsOrder.open({ records: [data] })  // CORRETO: open() (não setData!)
-      dsItems.open({ records: data.items || [] })  // CORRETO: open()
-      if (action === 'EDIT') dsOrder.edit()
+    const order = dsOrder.getCurrentRecord()
+    if (order?.items) {
+      dsItems.open({ records: order.items })
     }
-  }, [data])
+  }, [dsOrder.getCurrentRecord()])
 
   return (
     <ArchbaseFormTemplate
-      innerRef={ref}
       dataSource={dsOrder}
-      // ...
+      onCancel={handleCancel}
+      onAfterSave={handleAfterSave}
+      withBorder={false}
     >
-      <Paper ref={ref} withBorder style={{ height: safeHeight }}>
+      <ScrollArea style={{ height: '100%' }}>
         <Stack gap={0} style={{ height: '100%' }}>
           {/* Header - Dados do pedido */}
           <Box p="md" style={{ borderBottom: '1px solid #eee' }}>
@@ -346,10 +354,10 @@ function OrderForm({ id, action, onClose }: FormProps) {
           </Box>
 
           {/* Body - Tabela de itens - CORRETO: ArchbaseDataGrid (não DataTable!) */}
-          <Box style={{ flex: 1 }}>
+          <Box style={{ flex: 1, minHeight: 300 }}>
             <ArchbaseDataGrid
               dataSource={dsItems}
-              height="100%"
+              height={300}
             >
               <Columns>
                 <ArchbaseDataGridColumn
@@ -362,13 +370,13 @@ function OrderForm({ id, action, onClose }: FormProps) {
                   dataField="quantity"
                   header="Qtd"
                   size={80}
-                  dataType="number"
+                  dataType="integer"
                 />
                 <ArchbaseDataGridColumn
                   dataField="price"
                   header="Preço"
                   size={100}
-                  dataType="number"
+                  dataType="currency"
                 />
               </Columns>
             </ArchbaseDataGrid>
@@ -381,7 +389,7 @@ function OrderForm({ id, action, onClose }: FormProps) {
             </Group>
           </Box>
         </Stack>
-      </Paper>
+      </ScrollArea>
     </ArchbaseFormTemplate>
   )
 }
@@ -511,16 +519,18 @@ function AddressFields() {
 
 ## Checklist de Form
 
-- [ ] Usar `useRef()` e `useArchbaseSize(ref)` que retorna `[width, height]`
-- [ ] Passar `innerRef={ref}` para ArchbaseFormTemplate
-- [ ] DataSource criado com `useState` e apenas nome no construtor
-- [ ] Validator configurado via `dataSource.setValidator()` em useEffect
-- [ ] Query com `enabled` correto para NEW vs EDIT
+### Padrão Recomendado (useArchbaseRemoteDataSource)
+- [ ] **CRÍTICO**: NÃO usar `useElementSize` ou `useArchbaseSize` - causam loop de renderização!
+- [ ] Usar `ScrollArea` com `style={{ height: '100%' }}` para scroll interno
+- [ ] Usar `useArchbaseStore('nomeFixo')` - NÃO usar ID dinâmico
+- [ ] Usar `useArchbaseRemoteDataSource` com `onLoadComplete`
+- [ ] **CRÍTICO**: NÃO usar `forceUpdate()` no `onLoadComplete`
+- [ ] **CRÍTICO**: Comparar action com `toUpperCase()`: `action.toUpperCase() === 'ADD'`
+- [ ] No `onLoadComplete`: chamar `dataSource.edit()` para EDIT, `dataSource.insert(Dto.newInstance())` para ADD
+- [ ] Todos os campos com `dataSource` e `dataField`
+- [ ] Usar `onAfterSave` para limpar store e fechar
+- [ ] Handler de cancel usando `!isViewAction` (não `action !== 'VIEW'`)
 - [ ] Usar `findOne()` (não `findById()`) no service
-- [ ] `useEffect` populando DataSource com `open({ records })` (não `setData`)
+- [ ] DataSource carrega com `open({ records })` (não `setData`)
 - [ ] Chamar `edit()` ou `insert()` (não `append()`) conforme action
 - [ ] Chamar `save()` (não `post()`) após salvar
-- [ ] Flag `isViewOnly` para campos readOnly
-- [ ] Handler de save com validação
-- [ ] Invalidar queries após salvar
-- [ ] Paper com `height: safeHeight`

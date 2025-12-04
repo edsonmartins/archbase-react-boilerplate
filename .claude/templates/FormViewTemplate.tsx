@@ -88,6 +88,7 @@ export function EntityForm() {
   const [searchParams] = useQueryParams({
     action: StringParam
   })
+  const action = searchParams.action || ''
 
   // ============================================
   // 2. REFS E TAMANHO
@@ -98,7 +99,17 @@ export function EntityForm() {
   const safeHeight = height > 0 ? height - 130 : 600
 
   // ============================================
-  // 3. HOOKS ARCHBASE
+  // 3. COMPARAÇÃO CASE-INSENSITIVE PARA ACTION (CRÍTICO!)
+  // As constantes de navegação podem ser minúsculas ('add', 'edit', 'view')
+  // Sempre comparar com toUpperCase() para evitar bugs
+  // ============================================
+
+  const isAddAction = action.toUpperCase() === 'ADD'
+  const isEditAction = action.toUpperCase() === 'EDIT'
+  const isViewAction = action.toUpperCase() === 'VIEW'
+
+  // ============================================
+  // 4. HOOKS ARCHBASE
   // ============================================
 
   const validator = useArchbaseValidator()
@@ -112,7 +123,7 @@ export function EntityForm() {
   })
 
   // ============================================
-  // 4. SERVICE API (IoC)
+  // 5. SERVICE API (IoC)
   // ============================================
 
   // TODO: Descomentar e ajustar para seu service
@@ -120,14 +131,14 @@ export function EntityForm() {
   const serviceApi = null as any // Placeholder
 
   // ============================================
-  // 5. ESTADOS LOCAIS
+  // 6. ESTADOS LOCAIS
   // ============================================
 
   // Estado para campos condicionais
   const [selectedStatus, setSelectedStatus] = useState<StatusEnum | undefined>()
 
   // ============================================
-  // 6. DATASOURCE REMOTO
+  // 7. DATASOURCE REMOTO
   // ============================================
 
   const { dataSource, isLoading } = useArchbaseRemoteDataSource<EntityDto, string>({
@@ -136,17 +147,17 @@ export function EntityForm() {
     service: serviceApi,
     store: templateStore,
     pageSize: 50,
-    loadOnStart: searchParams.action !== 'ADD',
+    loadOnStart: !isAddAction,  // CORRETO: usar variável case-insensitive
     validator,
-    id: searchParams.action === 'EDIT' || searchParams.action === 'VIEW' ? entityId : undefined,
+    id: isEditAction || isViewAction ? entityId : undefined,  // CORRETO: usar variáveis case-insensitive
     onLoadComplete: (dataSource) => {
       // Configurar modo baseado na ação
       if (!dataSource.isEmpty()) {
-        if (searchParams.action === 'EDIT') {
+        if (isEditAction) {  // CORRETO: usar variável case-insensitive
           dataSource.edit()
         }
         forceUpdate()
-      } else if (searchParams.action === 'ADD') {
+      } else if (isAddAction) {  // CORRETO: usar variável case-insensitive
         dataSource.insert(EntityDto.newInstance())
       }
     },
@@ -159,7 +170,7 @@ export function EntityForm() {
   })
 
   // ============================================
-  // 7. EFFECTS
+  // 8. EFFECTS
   // ============================================
 
   // Sincronizar estado local com datasource
@@ -173,7 +184,7 @@ export function EntityForm() {
   }, [dataSource, dataSource?.getCurrentRecord()?.status])
 
   // ============================================
-  // 8. HANDLERS
+  // 9. HANDLERS
   // ============================================
 
   const handleAfterSave = () => {
@@ -182,7 +193,7 @@ export function EntityForm() {
   }
 
   const handleCancel = () => {
-    if (searchParams.action !== 'VIEW') {
+    if (!isViewAction) {  // CORRETO: usar variável case-insensitive
       ArchbaseDialog.showConfirmDialogYesNo(
         t('Confirme'),
         t('Deseja cancelar a edição?'),
@@ -202,10 +213,10 @@ export function EntityForm() {
   }
 
   // ============================================
-  // 9. HELPERS
+  // 10. HELPERS
   // ============================================
 
-  const isViewMode = searchParams.action === 'VIEW'
+  // Usar isViewAction diretamente - já é case-insensitive
 
   const getStatusLabel = (status: StatusEnum): string => {
     const labels: Record<StatusEnum, string> = {
@@ -219,13 +230,13 @@ export function EntityForm() {
   const statusOptions = Object.values(StatusEnum)
 
   // ============================================
-  // 10. RENDER
+  // 11. RENDER
   // ============================================
 
   return (
     <ArchbaseFormTemplate
       innerRef={target}
-      title={searchParams.action === 'ADD' ? t('Nova Entidade') : t('Editar Entidade')}
+      title={isAddAction ? t('Nova Entidade') : t('Editar Entidade')}  // CORRETO: usar variável case-insensitive
       dataSource={dataSource}
       onCancel={handleCancel}
       onAfterSave={handleAfterSave}
@@ -247,7 +258,7 @@ export function EntityForm() {
                   dataField="name"
                   placeholder={t('Digite o nome')}
                   required
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
 
                 {/* Campo de email */}
@@ -256,7 +267,7 @@ export function EntityForm() {
                   dataSource={dataSource}
                   dataField="email"
                   placeholder={t('Digite o e-mail')}
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
 
                 {/* Campo com máscara (telefone) */}
@@ -266,7 +277,7 @@ export function EntityForm() {
                   dataField="phone"
                   mask="(00) 00000-0000"
                   placeholder={t('Digite o telefone')}
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
 
                 {/* Select com enum */}
@@ -278,7 +289,7 @@ export function EntityForm() {
                   getOptionValue={(option: StatusEnum) => option}
                   onSelectValue={(value) => setSelectedStatus(value as StatusEnum)}
                   required
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 >
                   {statusOptions.map((status) => (
                     <ArchbaseSelectItem
@@ -304,7 +315,7 @@ export function EntityForm() {
                   placeholder={t('Digite o valor')}
                   precision={2}
                   prefix="R$ "
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
 
                 {/* Campo de data */}
@@ -313,7 +324,7 @@ export function EntityForm() {
                   dataSource={dataSource}
                   dataField="birthDate"
                   placeholder={t('Selecione a data')}
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
 
                 {/* Switch */}
@@ -321,7 +332,7 @@ export function EntityForm() {
                   label={t('Ativo')}
                   dataSource={dataSource}
                   dataField="active"
-                  disabled={isViewMode}
+                  disabled={isViewAction}  // CORRETO: usar variável case-insensitive
                 />
               </Stack>
             </Grid.Col>
@@ -337,7 +348,7 @@ export function EntityForm() {
                 placeholder={t('Digite a descrição')}
                 minRows={3}
                 maxRows={6}
-                disabled={isViewMode}
+                disabled={isViewAction}  // CORRETO: usar variável case-insensitive
               />
             </Grid.Col>
 
