@@ -1,12 +1,23 @@
 # Archbase Form Patterns - Guia Completo
 
-## Estrutura Base do Formulário (Padrão useArchbaseRemoteDataSource)
+## Estrutura Base do Formulário
 
-**IMPORTANTE**: Este é o padrão recomendado. **NÃO use** `useElementSize` ou `useArchbaseSize` em formulários - causa loop de renderização infinito!
+Existem dois padrões para formulários:
+- **V1**: `useArchbaseRemoteDataSource` - Para código legado
+- **V2**: `useArchbaseRemoteDataSourceV2` - **RECOMENDADO para novos projetos**
+
+**IMPORTANTE**: **NÃO use** `useElementSize` ou `useArchbaseSize` em formulários - causa loop de renderização infinito!
+
+---
+
+## Padrão V2 - useArchbaseRemoteDataSourceV2 (RECOMENDADO)
+
+O padrão V2 oferece melhor integração de tipos e não requer cast `as any`.
 
 ```typescript
+import { useEffect, useRef } from 'react'
 import { ScrollArea, Grid, Stack, LoadingOverlay } from '@mantine/core'
-import { useArchbaseRemoteDataSource, useArchbaseRemoteServiceApi, useArchbaseStore } from '@archbase/data'
+import { useArchbaseRemoteDataSourceV2, useArchbaseRemoteServiceApi, useArchbaseStore } from '@archbase/data'
 import { ArchbaseFormTemplate } from '@archbase/template'
 import { ArchbaseDialog, ArchbaseNotifications, ArchbaseEdit } from '@archbase/components'
 import { useArchbaseValidator, useArchbaseTranslation } from '@archbase/core'
@@ -35,29 +46,48 @@ export function UserForm() {
   const isEditAction = action.toUpperCase() === 'EDIT'
   const isViewAction = action.toUpperCase() === 'VIEW'
 
-  // 3. useArchbaseRemoteDataSource com onLoadComplete
-  const { dataSource, isLoading } = useArchbaseRemoteDataSource<UserDto, string>({
+  // 3. ✅ useArchbaseRemoteDataSourceV2 - PADRÃO RECOMENDADO
+  const { dataSource, isLoading } = useArchbaseRemoteDataSourceV2<UserDto>({
     name: 'dsUser',
     label: String(t('gestor-rq-admin:Usuário')),
     service: serviceApi,
-    store: templateStore,
     pageSize: 50,
-    loadOnStart: !isAddAction,
+    defaultSortFields: ['nome'],
     validator,
-    id: isEditAction || isViewAction ? id : undefined,
-    onLoadComplete: (dataSource) => {
-      // ✅ SEM forceUpdate() - NÃO é necessário!
-      if (action.toUpperCase() === 'EDIT') {
-        dataSource.edit()
-      } else if (action.toUpperCase() === 'ADD') {
-        const newRecord = UserDto.newInstance()  // ✅ Usa __isNew: true e UUID
-        dataSource.insert(newRecord)
-      }
-    },
-    onError: (error, origin) => {
-      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error, origin)
+    onError: (error) => {
+      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error)
     }
   })
+
+  // 4. Flag para garantir que loadRecord só execute uma vez
+  const hasLoadedRef = useRef(false)
+
+  // 5. Carrega o registro no useEffect
+  useEffect(() => {
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
+
+    const loadRecord = async () => {
+      if (isAddAction) {
+        dataSource.setRecords([])
+        const newRecord = UserDto.newInstance()  // ✅ Usa __isNew: true e UUID
+        dataSource.insert(newRecord)
+      } else if ((isEditAction || isViewAction) && id) {
+        try {
+          const record = await serviceApi.findOne(id)
+          const dto = new UserDto(record)
+          dataSource.setRecords([dto])
+          if (isEditAction) {
+            dataSource.edit()
+          }
+        } catch (error: any) {
+          ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), String(error))
+        }
+      }
+    }
+
+    loadRecord()
+  }, [])
 
   const handleAfterSave = () => {
     templateStore.clearAllValues()
@@ -116,62 +146,113 @@ export function UserForm() {
 
 ## Layouts de Campos
 
-### Campos em Linha
+### Layout Vertical com Larguras (PADRÃO RECOMENDADO)
 
-```typescript
-<Group grow mb="md">
-  <ArchbaseEdit
-    dataSource={dataSource}
-    dataField="firstName"
-    label="Nome"
-    required
-    readOnly={isViewOnly}
-  />
-  <ArchbaseEdit
-    dataSource={dataSource}
-    dataField="lastName"
-    label="Sobrenome"
-    required
-    readOnly={isViewOnly}
-  />
-</Group>
-```
+**IMPORTANTE**: Os formulários usam layout **VERTICAL** com `Stack`. Campos são empilhados um abaixo do outro, e campos curtos recebem `width` fixo para não ocupar toda a largura.
 
-### Grid Responsivo
-
-```typescript
-import { Grid } from '@mantine/core'
-
-<Grid>
-  <Grid.Col span={{ base: 12, md: 6 }}>
-    <ArchbaseEdit dataSource={ds} dataField="name" label="Nome" />
-  </Grid.Col>
-  <Grid.Col span={{ base: 12, md: 6 }}>
-    <ArchbaseEdit dataSource={ds} dataField="email" label="E-mail" />
-  </Grid.Col>
-  <Grid.Col span={{ base: 12, md: 4 }}>
-    <ArchbaseMaskEdit dataSource={ds} dataField="phone" label="Telefone" mask="(00) 00000-0000" />
-  </Grid.Col>
-  <Grid.Col span={{ base: 12, md: 4 }}>
-    <ArchbaseMaskEdit dataSource={ds} dataField="cpf" label="CPF" mask="000.000.000-00" />
-  </Grid.Col>
-  <Grid.Col span={{ base: 12, md: 4 }}>
-    <ArchbaseDatePickerEdit dataSource={ds} dataField="birthDate" label="Data de Nascimento" />
-  </Grid.Col>
-</Grid>
-```
-
-### Stack Vertical
+| Tipo de Campo | Width | Exemplos |
+|--------------|-------|----------|
+| ID/UUID | 320 | id, identificador |
+| Códigos curtos | 120-150 | código, sigla |
+| CPF | 180 | cpf |
+| CNPJ | 200 | cnpj |
+| Telefone | 180 | telefone, celular |
+| Valores monetários | 180 | preço, valor hora |
+| Números inteiros | 120-150 | quantidade, tempo |
+| Datas | 180 | data nascimento |
+| E-mail | 350 | email |
+| Selects curtos | 250 | status, tipo, classificação |
+| Nome/Descrição | (sem width) | largura total |
+| TextArea | (sem width) | largura total |
 
 ```typescript
 import { Stack } from '@mantine/core'
 
 <Stack gap="md">
-  <ArchbaseEdit dataSource={ds} dataField="name" label="Nome" />
-  <ArchbaseEdit dataSource={ds} dataField="email" label="E-mail" />
-  <ArchbaseTextArea dataSource={ds} dataField="description" label="Descrição" rows={4} />
+  <ArchbaseEdit
+    dataSource={ds}
+    dataField="id"
+    label="Identificador"
+    width={320}
+    readOnly
+  />
+  <ArchbaseEdit
+    dataSource={ds}
+    dataField="codigo"
+    label="Código"
+    width={150}
+  />
+  <ArchbaseEdit
+    dataSource={ds}
+    dataField="nome"
+    label="Nome"
+    // sem width - ocupa largura total
+  />
+  <ArchbaseEdit
+    dataSource={ds}
+    dataField="descricao"
+    label="Descrição"
+    // sem width - ocupa largura total
+  />
+  <ArchbaseSelect
+    dataSource={ds}
+    dataField="status"
+    label="Status"
+    width={250}
+    options={statusOptions}
+    getOptionLabel={(opt) => opt.name}
+    getOptionValue={(opt) => opt.id}
+  />
+  <ArchbaseMaskEdit
+    dataSource={ds}
+    dataField="cpf"
+    label="CPF"
+    mask="000.000.000-00"
+    width={180}
+  />
+  <ArchbaseMaskEdit
+    dataSource={ds}
+    dataField="telefone"
+    label="Telefone"
+    mask="(00) 00000-0000"
+    width={180}
+  />
+  <ArchbaseEdit
+    dataSource={ds}
+    dataField="email"
+    label="E-mail"
+    width={350}
+  />
+  <ArchbaseNumberEdit
+    dataSource={ds}
+    dataField="valor"
+    label="Valor"
+    width={180}
+    precision={2}
+  />
+  <ArchbaseSwitch
+    dataSource={ds}
+    dataField="ativo"
+    label="Ativo"
+    // switch não precisa de width
+  />
+  <ArchbaseTextArea
+    dataSource={ds}
+    dataField="observacao"
+    label="Observação"
+    minRows={3}
+    // sem width - ocupa largura total
+  />
 </Stack>
 ```
+
+### Princípios de Design
+
+1. **Layout VERTICAL** - usar `Stack`, campos um abaixo do outro
+2. **Campos curtos com `width`** - códigos, CPF, telefone, valores monetários
+3. **Campos longos sem `width`** - nome, descrição, TextArea ocupam 100%
+4. **Switch/Checkbox** - não precisam de width
+5. **NÃO usar Grid.Col** - evitar layout horizontal lado a lado
 
 ## Form com Tabs
 
@@ -519,18 +600,27 @@ function AddressFields() {
 
 ## Checklist de Form
 
-### Padrão Recomendado (useArchbaseRemoteDataSource)
+### Padrão V2 - useArchbaseRemoteDataSourceV2 (RECOMENDADO)
 - [ ] **CRÍTICO**: NÃO usar `useElementSize` ou `useArchbaseSize` - causam loop de renderização!
 - [ ] Usar `ScrollArea` com `style={{ height: '100%' }}` para scroll interno
 - [ ] Usar `useArchbaseStore('nomeFixo')` - NÃO usar ID dinâmico
-- [ ] Usar `useArchbaseRemoteDataSource` com `onLoadComplete`
-- [ ] **CRÍTICO**: NÃO usar `forceUpdate()` no `onLoadComplete`
+- [ ] Usar `useArchbaseRemoteDataSourceV2` - **SEM cast `as any`**
+- [ ] Usar `useRef(false)` + `useEffect` para carregar registro uma única vez
 - [ ] **CRÍTICO**: Comparar action com `toUpperCase()`: `action.toUpperCase() === 'ADD'`
-- [ ] No `onLoadComplete`: chamar `dataSource.edit()` para EDIT, `dataSource.insert(Dto.newInstance())` para ADD
-- [ ] Todos os campos com `dataSource` e `dataField`
+- [ ] Usar `dataSource.setRecords([dto])` para carregar registro existente
+- [ ] Usar `dataSource.insert(Dto.newInstance())` para novo registro
+- [ ] Usar `dataSource.edit()` para entrar em modo edição
+- [ ] Todos os campos com `dataSource` e `dataField` - **SEM cast!**
 - [ ] Usar `onAfterSave` para limpar store e fechar
-- [ ] Handler de cancel usando `!isViewAction` (não `action !== 'VIEW'`)
+- [ ] Handler de cancel usando `!isViewAction`
 - [ ] Usar `findOne()` (não `findById()`) no service
-- [ ] DataSource carrega com `open({ records })` (não `setData`)
-- [ ] Chamar `edit()` ou `insert()` (não `append()`) conforme action
 - [ ] Chamar `save()` (não `post()`) após salvar
+
+### Diferenças V1 vs V2
+
+| V1 (useArchbaseRemoteDataSource) | V2 (useArchbaseRemoteDataSourceV2) |
+|----------------------------------|-----------------------------------|
+| `onLoadComplete` callback | `useEffect` com `hasLoadedRef` |
+| Precisa de cast `as any` | **Não precisa de cast** |
+| `store: templateStore` obrigatório | Opcional |
+| `loadOnStart` / `id` props | Carrega manualmente no `useEffect` |

@@ -396,7 +396,7 @@ export function DetailModalWithTabs({
       <Box pos="relative">
         <LoadingOverlay visible={isSaving} />
 
-        <Tabs defaultValue="info" variant="pills">
+        <Tabs defaultValue="info" variant="outline">
           <Tabs.List>
             <Tabs.Tab value="info" leftSection={<IconAddressBook size="0.8rem" />}>
               {t('Informações Gerais')}

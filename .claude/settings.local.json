@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(pnpm type-check:*)",
+      "WebSearch",
+      "WebFetch(domain:rondesignlab.com)",
+      "WebFetch(domain:hicronsoftware.com)"
     ],
     "deny": [],
     "ask": []

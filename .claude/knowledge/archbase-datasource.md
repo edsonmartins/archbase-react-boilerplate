@@ -9,6 +9,27 @@ O `ArchbaseDataSource` é a abstração central para gerenciamento de dados no A
 - Emite eventos de mudança
 - Suporta detecção automática V1/V2
 
+## Versões Disponíveis
+
+| Versão | Classe/Hook | Uso Recomendado |
+|--------|-------------|-----------------|
+| V1 | `ArchbaseDataSource` + `useArchbaseRemoteDataSource` | Código legado |
+| V2 | `ArchbaseRemoteDataSourceV2` + `useArchbaseRemoteDataSourceV2` | **Novos projetos** |
+
+### Interface Comum: IArchbaseDataSourceBase<T>
+
+Tanto V1 quanto V2 implementam a interface `IArchbaseDataSourceBase<T>`, permitindo que componentes funcionem com ambas as versões sem cast:
+
+```typescript
+import type { IArchbaseDataSourceBase } from '@archbase/data'
+
+// Componentes podem aceitar qualquer versão
+interface MyComponentProps<T> {
+  dataSource: IArchbaseDataSourceBase<T>
+  dataField: string
+}
+```
+
 ## Criação
 
 ### Básica
@@ -487,4 +508,213 @@ dataSource.setData(records)
 
 // CORRETO
 dataSource.open({ records: records })
+```
+
+---
+
+## useArchbaseRemoteDataSourceV2 - PADRÃO RECOMENDADO
+
+O hook `useArchbaseRemoteDataSourceV2` é o **padrão recomendado para novos projetos**. Ele integra automaticamente com o service para operações CRUD.
+
+### Exemplo Completo de Form com V2
+
+```typescript
+import { useEffect, useRef } from 'react'
+import { Grid, Stack, LoadingOverlay } from '@mantine/core'
+import {
+  useArchbaseRemoteDataSourceV2,
+  useArchbaseRemoteServiceApi,
+  useArchbaseStore
+} from '@archbase/data'
+import {
+  ArchbaseDialog,
+  ArchbaseNotifications,
+  ArchbaseEdit,
+  ArchbaseSwitch,
+  ArchbaseNumberEdit,
+  ArchbaseTextArea
+} from '@archbase/components'
+import { ArchbaseFormTemplate } from '@archbase/template'
+import { useArchbaseValidator, useArchbaseTranslation } from '@archbase/core'
+import { useArchbaseNavigationListener } from '@archbase/admin'
+import { useLocation, useParams } from 'react-router'
+import { useSearchParams } from 'react-router-dom'
+
+export function MecanicoForm() {
+  const { t } = useArchbaseTranslation()
+  const location = useLocation()
+  const { id } = useParams()
+  const validator = useArchbaseValidator()
+  const [searchParams] = useSearchParams()
+  const action = searchParams.get('action') || ''
+
+  const templateStore = useArchbaseStore('mecanicoFormStore')
+  const { closeAllowed } = useArchbaseNavigationListener(location.pathname, () => {
+    templateStore.clearAllValues()
+    closeAllowed()
+  })
+  const serviceApi = useArchbaseRemoteServiceApi<MecanicoService>(API_TYPE.Mecanico)
+
+  const isAddAction = action.toUpperCase() === 'ADD'
+  const isEditAction = action.toUpperCase() === 'EDIT'
+  const isViewAction = action.toUpperCase() === 'VIEW'
+
+  // ✅ useArchbaseRemoteDataSourceV2 - Padrão recomendado
+  const {
+    dataSource,
+    isLoading
+  } = useArchbaseRemoteDataSourceV2<MecanicoDto>({
+    name: 'dsMecanico',
+    label: String(t('gestor-rq-admin:Mecânico')),
+    service: serviceApi,
+    pageSize: 50,
+    defaultSortFields: ['nome'],
+    validator,
+    onError: (error) => {
+      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error)
+    }
+  })
+
+  // Flag para garantir que loadRecord só execute uma vez
+  const hasLoadedRef = useRef(false)
+
+  // Carrega o registro apenas uma vez quando o componente monta
+  useEffect(() => {
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
+
+    const loadRecord = async () => {
+      if (isAddAction) {
+        dataSource.setRecords([])
+        const newRecord = MecanicoDto.newInstance()
+        dataSource.insert(newRecord)
+      } else if ((isEditAction || isViewAction) && id) {
+        try {
+          const record = await serviceApi.findOne(id)
+          const dto = new MecanicoDto(record)
+          dataSource.setRecords([dto])
+          if (isEditAction) {
+            dataSource.edit()
+          }
+        } catch (error: any) {
+          ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), String(error))
+        }
+      }
+    }
+
+    loadRecord()
+  }, [])
+
+  const handleAfterSave = () => {
+    templateStore.clearAllValues()
+    closeAllowed()
+  }
+
+  const handleCancel = () => {
+    if (!isViewAction) {
+      ArchbaseDialog.showConfirmDialogYesNo(
+        String(t('gestor-rq-admin:Confirme')),
+        String(t('gestor-rq-admin:Deseja cancelar a edição/inserção?')),
+        () => {
+          if (!dataSource.isBrowsing()) {
+            dataSource.cancel()
+          }
+          templateStore.clearAllValues()
+          closeAllowed()
+        },
+        () => { }
+      )
+    } else {
+      templateStore.clearAllValues()
+      closeAllowed()
+    }
+  }
+
+  // ✅ dataSource pode ser passado diretamente para componentes
+  // Sem necessidade de cast 'as any'
+  return (
+    <ArchbaseFormTemplate
+      dataSource={dataSource}
+      onCancel={handleCancel}
+      onAfterSave={handleAfterSave}
+      withBorder={false}
+    >
+      <LoadingOverlay visible={isLoading} />
+      <Grid>
+        <Grid.Col span={{ base: 12, md: 6 }}>
+          <Stack gap="md">
+            <ArchbaseEdit<MecanicoDto, string>
+              label={String(t('gestor-rq-admin:Nome'))}
+              dataSource={dataSource}
+              dataField="nome"
+              placeholder={String(t('gestor-rq-admin:Digite o nome'))}
+              required
+            />
+            <ArchbaseNumberEdit<MecanicoDto, number>
+              label={String(t('gestor-rq-admin:Valor/Hora (R$)'))}
+              dataSource={dataSource}
+              dataField="valorHora"
+              precision={2}
+              minValue={0}
+              prefix="R$ "
+              width={180}
+            />
+            <ArchbaseSwitch<MecanicoDto, boolean>
+              label={String(t('gestor-rq-admin:Ativo'))}
+              dataSource={dataSource}
+              dataField="ativo"
+            />
+          </Stack>
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, md: 6 }}>
+          <ArchbaseTextArea<MecanicoDto, string>
+            label={String(t('gestor-rq-admin:Observação'))}
+            dataSource={dataSource}
+            dataField="observacoes"
+            autosize
+            minRows={8}
+          />
+        </Grid.Col>
+      </Grid>
+    </ArchbaseFormTemplate>
+  )
+}
+```
+
+### Características do useArchbaseRemoteDataSourceV2
+
+1. **Compatibilidade Total**: O `dataSource` retornado implementa `IArchbaseDataSourceBase<T>`, funcionando com todos os componentes Archbase sem cast
+2. **Integração com Service**: Operações de save/delete são feitas automaticamente via service
+3. **Métodos Disponíveis**:
+   - `setRecords([...])` - Define registros
+   - `insert(record)` - Insere novo registro
+   - `edit()` - Entra em modo edição
+   - `save()` - Salva via service
+   - `cancel()` - Cancela alterações
+   - `remove()` - Remove registro atual
+   - `getFieldValue(field)` - Obtém valor do campo
+   - `setFieldValue(field, value)` - Define valor do campo
+
+### Diferenças entre V1 e V2
+
+| Aspecto | V1 (useArchbaseRemoteDataSource) | V2 (useArchbaseRemoteDataSourceV2) |
+|---------|----------------------------------|-----------------------------------|
+| Tipo do dataSource | `ArchbaseDataSource<T, ID>` | `ArchbaseRemoteDataSourceV2<T>` |
+| Interface comum | Não | Sim (`IArchbaseDataSourceBase<T>`) |
+| Cast necessário | Às vezes `as any` | **Nunca** |
+| Carregar registros | `onLoadComplete` callback | `setRecords()` + `useEffect` |
+| Operações em array | Manual | Métodos nativos |
+| Performance | Boa | **Melhor** (menos re-renders) |
+
+### Migração de V1 para V2
+
+```typescript
+// ❌ ANTES (V1) - Necessitava cast
+const { dataSource } = useArchbaseRemoteDataSource<UserDto, string>({...})
+const ds = dataSource as any  // Cast necessário
+<ArchbaseEdit dataSource={ds} dataField="nome" />
+
+// ✅ DEPOIS (V2) - Sem cast
+const { dataSource } = useArchbaseRemoteDataSourceV2<UserDto>({...})
+<ArchbaseEdit dataSource={dataSource} dataField="nome" />  // Funciona direto!
 ```
