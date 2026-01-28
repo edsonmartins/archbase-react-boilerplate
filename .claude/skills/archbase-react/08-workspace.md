@@ -502,3 +502,179 @@ export function MinhaView() {
   )
 }
 ```
+
+---
+
+## Modais com useDisclosure
+
+Padrão para gerenciar abertura/fechamento de modais.
+
+```typescript
+import { useDisclosure } from '@mantine/hooks'
+import { Modal, Tabs } from '@mantine/core'
+
+function ViewComModal() {
+  const [detailsOpened, { open: openDetails, close: closeDetails }] = useDisclosure(false)
+  const [selectedItem, setSelectedItem] = useState<ItemDto | null>(null)
+
+  const handleOpenDetails = (item: ItemDto) => {
+    setSelectedItem(item)
+    openDetails()
+  }
+
+  return (
+    <>
+      <Button onClick={() => handleOpenDetails(currentRecord)}>
+        Ver Detalhes
+      </Button>
+
+      <Modal
+        opened={detailsOpened}
+        onClose={closeDetails}
+        title="Detalhes do Item"
+        size="lg"
+      >
+        <Tabs defaultValue="dados" variant="outline">
+          <Tabs.List>
+            <Tabs.Tab value="dados">Dados Gerais</Tabs.Tab>
+            <Tabs.Tab value="historico">Histórico</Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="dados" pt="md">
+            <Stack>
+              <Text><strong>Nome:</strong> {selectedItem?.nome}</Text>
+              <Text><strong>Status:</strong> {selectedItem?.status}</Text>
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="historico" pt="md">
+            {/* Lista de histórico */}
+          </Tabs.Panel>
+        </Tabs>
+      </Modal>
+    </>
+  )
+}
+```
+
+---
+
+## Drawer para Detalhes
+
+Alternativa ao Modal para exibir detalhes lateralmente.
+
+```typescript
+import { Drawer } from '@mantine/core'
+
+function ViewComDrawer() {
+  const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false)
+
+  return (
+    <>
+      <ArchbaseDataGrid
+        dataSource={dataSource}
+        height={400}
+        onCellDoubleClick={() => openDrawer()}
+      >
+        {/* Colunas */}
+      </ArchbaseDataGrid>
+
+      <Drawer
+        opened={drawerOpened}
+        onClose={closeDrawer}
+        title="Detalhes"
+        position="right"
+        size="lg"
+      >
+        <Stack>
+          {/* Conteúdo do drawer */}
+        </Stack>
+      </Drawer>
+    </>
+  )
+}
+```
+
+---
+
+## Renderização de Status em Grid
+
+Padrão para renderizar status coloridos em colunas de grid.
+
+```typescript
+const renderStatus = (data: any): ReactNode => {
+  const row = data.row.original as MinhaDto
+  const statusValue = StatusValues.find(s => s.value === row.status)
+  return (
+    <Badge color={getStatusColor(row.status)} variant="filled" size="sm">
+      {statusValue?.label || row.status}
+    </Badge>
+  )
+}
+
+const renderBoolean = (value?: boolean): ReactNode => {
+  return value ? (
+    <IconCheckbox size={24} color="green" stroke={2} />
+  ) : (
+    <IconSquare size={24} color="gray" stroke={2} />
+  )
+}
+
+// Uso
+<ArchbaseDataGridColumn<MinhaDto>
+  dataField="status"
+  header="Status"
+  size={100}
+  dataType="text"
+  render={renderStatus}
+/>
+
+<ArchbaseDataGridColumn<MinhaDto>
+  dataField="ativo"
+  header="Ativo"
+  size={80}
+  dataType="boolean"
+  align="center"
+  render={(data) => renderBoolean(data.getValue())}
+/>
+```
+
+---
+
+## Constantes de Action
+
+Padrão para constantes de ação usadas em navegação.
+
+```typescript
+// navigationDataConstants.tsx
+export const ADD_ACTION = 'ADD'
+export const EDIT_ACTION = 'EDIT'
+export const VIEW_ACTION = 'VIEW'
+
+// Uso em navegação
+const navigate = useArchbaseNavigateParams()
+
+const handleAdd = () => {
+  navigate(
+    `${ENTIDADE_ROUTE}/${uniqueId()}`,
+    {},
+    { action: ADD_ACTION, redirectUrl: ENTIDADE_ROUTE }
+  )
+}
+
+const handleEdit = (id: string) => {
+  navigate(
+    `${ENTIDADE_ROUTE}/${id}`,
+    {},
+    { action: EDIT_ACTION, redirectUrl: ENTIDADE_ROUTE }
+  )
+}
+
+// Leitura no form
+const [searchParams] = useSearchParams()
+const action = searchParams.get('action') || ''
+
+const isAddAction = action.toUpperCase() === 'ADD'
+const isEditAction = action.toUpperCase() === 'EDIT'
+const isViewAction = action.toUpperCase() === 'VIEW'
+```

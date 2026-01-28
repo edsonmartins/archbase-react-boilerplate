@@ -573,6 +573,174 @@ export function DashboardView() {
 }
 ```
 
+## List View com ArchbaseGridTemplate (Padrão Avançado)
+
+O `ArchbaseGridTemplate` é o template mais completo para views de listagem, com filtros, ações e paginação integrados.
+
+```typescript
+import { useRef, useMemo, useCallback, useState } from 'react'
+import { Paper } from '@mantine/core'
+import { useElementSize } from '@mantine/hooks'
+import { ArchbaseGridTemplate, ArchbaseDataGridColumn, Columns, ArchbaseGridRowActions } from '@archbase/components'
+import { useArchbaseRemoteDataSourceV2, useArchbaseRemoteServiceApi } from '@archbase/data'
+import { ArchbaseViewSecurityProvider, useArchbaseSecureForm } from '@archbase/security'
+
+const SECURITY_RESOURCE_NAME = 'modulo.entidade'
+const SECURITY_RESOURCE_DESCRIPTION = 'Minha Entidade'
+
+export function MinhaEntidadeView() {
+  return (
+    <ArchbaseViewSecurityProvider
+      resourceName={SECURITY_RESOURCE_NAME}
+      resourceDescription={SECURITY_RESOURCE_DESCRIPTION}
+    >
+      <MinhaEntidadeViewContent />
+    </ArchbaseViewSecurityProvider>
+  )
+}
+
+function MinhaEntidadeViewContent() {
+  const containerRef = useRef(null)
+  const templateRef = useRef(null)
+  const { height: containerHeight } = useElementSize()
+  const [lastError, setLastError] = useState<string | null>(null)
+
+  const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
+    SECURITY_RESOURCE_NAME,
+    SECURITY_RESOURCE_DESCRIPTION
+  )
+
+  const serviceApi = useArchbaseRemoteServiceApi<MinhaService>(API_TYPE.MinhaEntidade)
+
+  const {
+    dataSource,
+    isLoading,
+    error,
+    refreshData,
+    remove,
+    currentRecord
+  } = useArchbaseRemoteDataSourceV2<MinhaDto>({
+    name: 'dsMinhaEntidade',
+    label: 'Minha Entidade',
+    service: serviceApi,
+    pageSize: 25,
+    defaultSortFields: ['-createdAt'],
+    onError: (err) => {
+      ArchbaseNotifications.showError('Atenção', err)
+      setLastError(err)
+    }
+  })
+
+  const handleClearError = useCallback(() => setLastError(null), [])
+
+  const getRowId = useCallback((row: MinhaDto) => row.id || '', [])
+
+  // Handlers de ação
+  const handleAdd = useCallback(() => {
+    navigate(`${MINHA_ENTIDADE_ROUTE}/${uniqueId()}`, {}, { action: 'ADD' })
+  }, [navigate])
+
+  const handleEdit = useCallback(() => {
+    if (currentRecord) {
+      navigate(`${MINHA_ENTIDADE_ROUTE}/${currentRecord.id}`, {}, { action: 'EDIT' })
+    }
+  }, [currentRecord, navigate])
+
+  const handleView = useCallback(() => {
+    if (currentRecord) {
+      navigate(`${MINHA_ENTIDADE_ROUTE}/${currentRecord.id}`, {}, { action: 'VIEW' })
+    }
+  }, [currentRecord, navigate])
+
+  const handleRemove = useCallback(() => {
+    if (currentRecord) {
+      ArchbaseDialog.showConfirmDialogYesNo(
+        'Confirme',
+        `Deseja remover "${currentRecord.nome}"?`,
+        () => remove(),
+        () => {}
+      )
+    }
+  }, [currentRecord, remove])
+
+  // Row actions
+  const userRowActions: UserRowActionsOptions<MinhaDto> = {
+    actions: ArchbaseGridRowActions,
+    onAddRow: canCreate ? handleAdd : undefined,
+    onEditRow: canEdit ? handleEdit : undefined,
+    onRemoveRow: canDelete ? handleRemove : undefined,
+    onViewRow: canView ? handleView : undefined
+  }
+
+  // Colunas memoizadas
+  const columns = useMemo(() => (
+    <Columns>
+      <ArchbaseDataGridColumn<MinhaDto>
+        dataField="codigo"
+        header="Código"
+        size={120}
+        dataType="text"
+      />
+      <ArchbaseDataGridColumn<MinhaDto>
+        dataField="nome"
+        header="Nome"
+        size={300}
+        dataType="text"
+      />
+      <ArchbaseDataGridColumn<MinhaDto>
+        dataField="status"
+        header="Status"
+        size={120}
+        dataType="text"
+        render={(data) => <StatusBadge status={data.getValue()} />}
+      />
+    </Columns>
+  ), [])
+
+  return (
+    <Paper p="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper ref={containerRef} withBorder style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <ArchbaseGridTemplate<MinhaDto, string>
+          ref={templateRef}
+          title=""
+          height={containerHeight}
+          width="100%"
+          dataSource={dataSource}
+          pageSize={25}
+          isLoading={isLoading}
+          error={error || lastError}
+          isError={Boolean(error || lastError)}
+          clearError={handleClearError}
+          withBorder={false}
+          filterOptions={{
+            activeFilterIndex: 0,
+            enabledAdvancedFilter: false,
+            apiVersion: '1.00',
+            componentName: 'minhaEntidadeFilter',
+            viewName: 'MinhaEntidadeView'
+          }}
+          userActions={{
+            visible: true,
+            allowRemove: canDelete,
+            onAddExecute: canCreate ? handleAdd : undefined,
+            onEditExecute: canEdit ? handleEdit : undefined,
+            onRemoveExecute: canDelete ? handleRemove : undefined,
+            onViewExecute: canView ? handleView : undefined
+          }}
+          userRowActions={userRowActions}
+          getRowId={getRowId}
+          enableRowSelection={true}
+          enableRowActions={true}
+          columns={columns}
+          filterType="normal"
+          positionActionsColumn="first"
+        />
+      </Paper>
+    </Paper>
+  )
+}
+```
+
 ## Registro na Navegação
 
 ```typescript

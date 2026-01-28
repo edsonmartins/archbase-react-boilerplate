@@ -278,3 +278,176 @@ dsClientes.updateFieldArrayItem('pedidos', index, (draft) => {
 // Remover pedido
 dsClientes.removeFromFieldArray('pedidos', index)
 ```
+
+---
+
+## Padrão Enum + Values para Select
+
+```typescript
+// 1. Definir Enum
+export enum StatusItem {
+  ATIVO = 'ATIVO',
+  INATIVO = 'INATIVO',
+  PENDENTE = 'PENDENTE'
+}
+
+// 2. Definir Values para select
+export const StatusItemValues = [
+  { value: StatusItem.ATIVO, label: 'Ativo' },
+  { value: StatusItem.INATIVO, label: 'Inativo' },
+  { value: StatusItem.PENDENTE, label: 'Pendente' }
+]
+
+// 3. Usar em Select
+<ArchbaseSelect
+  dataSource={dataSource}
+  dataField="status"
+  options={StatusItemValues}
+  getOptionLabel={(opt) => opt.label}
+  getOptionValue={(opt) => opt.value}
+/>
+
+// 4. Usar em renderização
+const renderStatus = (status: StatusItem): ReactNode => {
+  const item = StatusItemValues.find(v => v.value === status)
+  return <Badge>{item?.label || status}</Badge>
+}
+```
+
+---
+
+## Constantes de Segurança
+
+```typescript
+// src/hooks/useGestorRQSecurity.ts
+export const TMS_SECURITY_RESOURCES = {
+  MECANICO: { name: 'tms.mecanico', description: 'Mecânicos' },
+  PECA_MATERIAL: { name: 'tms.pecamaterial', description: 'Peças e Materiais' },
+  TIPO_SERVICO: { name: 'tms.tiposervico', description: 'Tipos de Serviço' },
+  ORDEM_SERVICO: { name: 'tms.ordemservico', description: 'Ordens de Serviço' },
+  VEICULO: { name: 'frota.veiculo', description: 'Veículos' }
+} as const
+
+// Hook customizado
+export function useGestorRQSecurity({ module, entity, description }: {
+  module: string
+  entity: string
+  description: string
+}) {
+  const resourceName = `${module}.${entity}`
+  const resourceDescription = description
+  return useArchbaseSecureForm(resourceName, resourceDescription)
+}
+
+// Uso
+const { canCreate, canEdit, canDelete, canView } = useGestorRQSecurity({
+  module: 'tms',
+  entity: 'mecanico',
+  description: 'Mecânicos'
+})
+```
+
+---
+
+## IoC/Injeção de Dependência
+
+### Definir Tipos (IOCTypes.ts)
+
+```typescript
+import { ARCHBASE_IOC_API_TYPE } from "@archbase/core"
+
+export const API_TYPE = {
+  // Archbase padrão
+  Authenticator: ARCHBASE_IOC_API_TYPE.Authenticator,
+  TokenManager: ARCHBASE_IOC_API_TYPE.TokenManager,
+  ApiClient: ARCHBASE_IOC_API_TYPE.ApiClient,
+
+  // Services do projeto
+  Veiculo: Symbol.for('VeiculoService'),
+  Motorista: Symbol.for('MotoristaService'),
+  OrdemServico: Symbol.for('OrdemServicoService'),
+  ChecklistModelo: Symbol.for('ChecklistModeloService')
+}
+```
+
+### Registrar no Container (ContainerIOC.ts)
+
+```typescript
+import { IOCContainer } from '@archbase/core'
+
+const container = IOCContainer.getContainer()
+
+// ApiClient
+if (!container.isBound(ARCHBASE_IOC_API_TYPE.ApiClient)) {
+  container
+    .bind<ArchbaseRemoteApiClient>(ARCHBASE_IOC_API_TYPE.ApiClient)
+    .to(ArchbaseAxiosRemoteApiClient)
+}
+
+// Services
+container.bind<VeiculoService>(API_TYPE.Veiculo).to(VeiculoService)
+container.bind<MotoristaService>(API_TYPE.Motorista).to(MotoristaService)
+container.bind<OrdemServicoService>(API_TYPE.OrdemServico).to(OrdemServicoService)
+```
+
+### Usar no Componente
+
+```typescript
+const serviceApi = useArchbaseRemoteServiceApi<VeiculoService>(API_TYPE.Veiculo)
+
+// Ou com useInjection (Inversify React)
+const service = useInjection<VeiculoService>(API_TYPE.Veiculo)
+```
+
+---
+
+## Hooks Archbase Mais Usados
+
+| Hook | Propósito |
+|------|-----------|
+| `useArchbaseRemoteDataSourceV2` | DataSource remoto com paginação |
+| `useArchbaseDataSourceV2` | DataSource local |
+| `useArchbaseRemoteServiceApi` | Injetar service do IoC |
+| `useArchbaseStore` | Estado persistente entre navegações |
+| `useArchbaseNavigationListener` | Detectar fechamento de aba |
+| `useArchbaseNavigateParams` | Navegar com parâmetros |
+| `useArchbaseSecureForm` | Verificar permissões RBAC |
+| `useArchbaseTranslation` | Tradução i18next |
+| `useArchbaseValidator` | Validador para DataSource |
+| `useArchbaseTheme` | Acesso ao tema atual |
+
+---
+
+## Notificações e Diálogos
+
+```typescript
+// Notificação de erro
+ArchbaseNotifications.showError('Atenção', error.message)
+
+// Notificação de sucesso
+ArchbaseNotifications.showSuccess('Sucesso', 'Operação realizada')
+
+// Notificação genérica
+ArchbaseNotifications.show({
+  title: 'Info',
+  message: 'Mensagem informativa',
+  color: 'blue'
+})
+
+// Diálogo de confirmação
+ArchbaseDialog.showConfirmDialogYesNo(
+  'Confirme',
+  'Deseja realmente excluir este registro?',
+  () => { /* Sim clicado */ },
+  () => { /* Não clicado */ }
+)
+
+// Mantine notifications
+import { notifications } from '@mantine/notifications'
+
+notifications.show({
+  title: 'Título',
+  message: 'Mensagem',
+  color: 'green'
+})
+```
