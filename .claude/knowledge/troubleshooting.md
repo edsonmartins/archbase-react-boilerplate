@@ -164,12 +164,12 @@ const { dataSource } = useArchbaseRemoteDataSource<UserDto, string>({
 
 // 2. Para mensagens de validação traduzidas (class-validator), usar:
 // No DTO:
-@IsNotEmpty({ message: 'gestor-rq-admin:O nome é obrigatório' })
+@IsNotEmpty({ message: 'my-app:O nome é obrigatório' })
 nome: string
 
 // No App.tsx, configurar translationName:
 <ArchbaseAdminMainLayout
-  translationName="gestor-rq-admin"  // ✅ Prefixo das traduções
+  translationName="my-app"  // ✅ Prefixo das traduções
   // ...
 />
 

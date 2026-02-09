@@ -2,7 +2,7 @@
 
 Este documento contém a referência completa dos componentes e padrões do Archbase React v3.
 
-**IMPORTANTE**: Documentação validada contra a biblioteca archbase-react-v3 e projeto gestor-rq-admin.
+**IMPORTANTE**: Documentação validada contra a biblioteca archbase-react-v3.
 
 ---
 

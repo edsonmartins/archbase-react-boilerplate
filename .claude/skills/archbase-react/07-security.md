@@ -44,13 +44,13 @@ Wrapper para cada view que registra o recurso e carrega permissões:
 ```typescript
 import { ArchbaseViewSecurityProvider } from '@archbase/security'
 
-export function MinhaView() {
+export function MyView() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName="modulo.entidade"
-      resourceDescription="Descrição da Entidade"
+      resourceName="module.entity"
+      resourceDescription="Entity Description"
     >
-      <MinhaViewContent />
+      <MyViewContent />
     </ArchbaseViewSecurityProvider>
   )
 }
@@ -63,9 +63,9 @@ Hook para obter permissões dentro do componente:
 ```typescript
 import { useArchbaseSecureForm } from '@archbase/security'
 
-function MinhaViewContent() {
+function MyViewContent() {
   const { canCreate, canEdit, canDelete, canView, isLoading } =
-    useArchbaseSecureForm('modulo.entidade', 'Descrição da Entidade')
+    useArchbaseSecureForm('module.entity', 'Entity Description')
 
   // Usar permissões para habilitar/desabilitar ações
   const userRowActions = {
@@ -98,14 +98,11 @@ function MinhaViewContent() {
 ### Padrão: `{modulo}.{entidade}`
 
 ```
-tms.mecanico          - Mecânicos
-tms.pecamaterial      - Peças e Materiais
-tms.tiposervico       - Tipos de Serviço
-tms.planomanutencao   - Planos de Manutenção
-tms.abastecimento     - Abastecimentos
-tms.ordemservico      - Ordens de Serviço
-checklist.modelo      - Modelos de Checklist
-viagem.monitor        - Monitor de Viagens
+catalog.product       - Products
+catalog.category      - Categories
+sales.order           - Orders
+sales.customer        - Customers
+admin.user            - Users
 ```
 
 ### Ações Padrão
@@ -118,24 +115,46 @@ viagem.monitor        - Monitor de Viagens
 
 ---
 
-## Hook Customizado do Projeto
+## Hook Customizado (Recomendado)
 
-O projeto possui um hook customizado para facilitar o uso:
+Crie um hook customizado para centralizar recursos de segurança:
 
 ```typescript
-import { useGestorRQSecurity, TMS_SECURITY_RESOURCES } from '../../../hooks'
+// src/hooks/useAppSecurity.ts
+import { useArchbaseSecureForm } from '@archbase/security'
 
-// Opção 1: Usando o hook customizado
-const { canCreate, canEdit, canDelete, canView } = useGestorRQSecurity({
-  module: 'tms',
-  entity: 'mecanico',
-  description: 'Mecânicos'
+export const APP_SECURITY_RESOURCES = {
+  PRODUCT: { name: 'catalog.product', description: 'Products' },
+  CATEGORY: { name: 'catalog.category', description: 'Categories' },
+  ORDER: { name: 'sales.order', description: 'Orders' },
+  CUSTOMER: { name: 'sales.customer', description: 'Customers' },
+  USER: { name: 'admin.user', description: 'Users' },
+}
+
+export function useAppSecurity({
+  module,
+  entity,
+  description
+}: {
+  module: string
+  entity: string
+  description: string
+}) {
+  const resourceName = `${module}.${entity}`
+  return useArchbaseSecureForm(resourceName, description)
+}
+
+// Uso:
+const { canCreate, canEdit, canDelete, canView } = useAppSecurity({
+  module: 'catalog',
+  entity: 'product',
+  description: 'Products'
 })
 
-// Opção 2: Usando constantes do projeto
+// Ou usando constantes:
 const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
-  TMS_SECURITY_RESOURCES.MECANICO.name,
-  TMS_SECURITY_RESOURCES.MECANICO.description
+  APP_SECURITY_RESOURCES.PRODUCT.name,
+  APP_SECURITY_RESOURCES.PRODUCT.description
 )
 ```
 
@@ -145,32 +164,32 @@ const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
 
 ```typescript
 import { ArchbaseViewSecurityProvider, useArchbaseSecureForm } from '@archbase/security'
-import { TMS_SECURITY_RESOURCES } from '../../../hooks'
+import { APP_SECURITY_RESOURCES } from '../../../hooks'
 
-export function MecanicoListView() {
+export function ProductListView() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName={TMS_SECURITY_RESOURCES.MECANICO.name}
-      resourceDescription={TMS_SECURITY_RESOURCES.MECANICO.description}
+      resourceName={APP_SECURITY_RESOURCES.PRODUCT.name}
+      resourceDescription={APP_SECURITY_RESOURCES.PRODUCT.description}
     >
-      <MecanicoListViewContent />
+      <ProductListViewContent />
     </ArchbaseViewSecurityProvider>
   )
 }
 
-function MecanicoListViewContent() {
+function ProductListViewContent() {
   const { t } = useArchbaseTranslation()
   const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
-    TMS_SECURITY_RESOURCES.MECANICO.name,
-    TMS_SECURITY_RESOURCES.MECANICO.description
+    APP_SECURITY_RESOURCES.PRODUCT.name,
+    APP_SECURITY_RESOURCES.PRODUCT.description
   )
 
-  const userRowActions: UserRowActionsOptions<MecanicoDto> = {
+  const userRowActions: UserRowActionsOptions<ProductDto> = {
     actions: ArchbaseGridRowActions,
-    onAddRow: canCreate ? handleAddMecanico : undefined,
-    onEditRow: canEdit ? handleEditMecanico : undefined,
-    onRemoveRow: canDelete ? handleRemoveMecanico : undefined,
-    onViewRow: canView ? handleViewMecanico : undefined
+    onAddRow: canCreate ? handleAddProduct : undefined,
+    onEditRow: canEdit ? handleEditProduct : undefined,
+    onRemoveRow: canDelete ? handleRemoveProduct : undefined,
+    onViewRow: canView ? handleViewProduct : undefined
   }
 
   return (
@@ -178,10 +197,10 @@ function MecanicoListViewContent() {
       userActions={{
         visible: true,
         allowRemove: canDelete,
-        onAddExecute: canCreate ? handleAddMecanico : undefined,
-        onEditExecute: canEdit ? handleEditMecanico : undefined,
-        onRemoveExecute: canDelete ? handleRemoveMecanico : undefined,
-        onViewExecute: canView ? handleViewMecanico : undefined
+        onAddExecute: canCreate ? handleAddProduct : undefined,
+        onEditExecute: canEdit ? handleEditProduct : undefined,
+        onRemoveExecute: canDelete ? handleRemoveProduct : undefined,
+        onViewExecute: canView ? handleViewProduct : undefined
       }}
       userRowActions={userRowActions}
       // ...
@@ -196,23 +215,23 @@ function MecanicoListViewContent() {
 
 ```typescript
 import { ArchbaseViewSecurityProvider, useArchbaseSecureForm } from '@archbase/security'
-import { TMS_SECURITY_RESOURCES } from '../../../hooks'
+import { APP_SECURITY_RESOURCES } from '../../../hooks'
 
-export function MecanicoForm() {
+export function ProductForm() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName={TMS_SECURITY_RESOURCES.MECANICO.name}
-      resourceDescription={TMS_SECURITY_RESOURCES.MECANICO.description}
+      resourceName={APP_SECURITY_RESOURCES.PRODUCT.name}
+      resourceDescription={APP_SECURITY_RESOURCES.PRODUCT.description}
     >
-      <MecanicoFormContent />
+      <ProductFormContent />
     </ArchbaseViewSecurityProvider>
   )
 }
 
-function MecanicoFormContent() {
+function ProductFormContent() {
   const { canCreate, canEdit } = useArchbaseSecureForm(
-    TMS_SECURITY_RESOURCES.MECANICO.name,
-    TMS_SECURITY_RESOURCES.MECANICO.description
+    APP_SECURITY_RESOURCES.PRODUCT.name,
+    APP_SECURITY_RESOURCES.PRODUCT.description
   )
 
   const isAddAction = action.toUpperCase() === 'ADD'
@@ -252,21 +271,21 @@ POST /api/v1/resource/register
 Request:
 {
   "resource": {
-    "resourceName": "tms.mecanico",
-    "resourceDescription": "Mecânicos"
+    "resourceName": "catalog.product",
+    "resourceDescription": "Products"
   },
   "actions": [
-    { "actionName": "create", "actionDescription": "Criar Mecânicos" },
-    { "actionName": "edit", "actionDescription": "Editar Mecânicos" },
-    { "actionName": "delete", "actionDescription": "Deletar Mecânicos" },
-    { "actionName": "view", "actionDescription": "Visualizar Mecânicos" },
-    { "actionName": "list", "actionDescription": "Listar Mecânicos" }
+    { "actionName": "create", "actionDescription": "Create Products" },
+    { "actionName": "edit", "actionDescription": "Edit Products" },
+    { "actionName": "delete", "actionDescription": "Delete Products" },
+    { "actionName": "view", "actionDescription": "View Products" },
+    { "actionName": "list", "actionDescription": "List Products" }
   ]
 }
 
 Response:
 {
-  "resourceName": "tms.mecanico",
+  "resourceName": "catalog.product",
   "permissions": ["create", "edit", "view", "list"]
 }
 ```
@@ -276,7 +295,7 @@ Response:
 ## Checklist de Implementação
 
 - [ ] Configurar `ArchbaseSecurityProvider` no `App.tsx` com `securityUser`
-- [ ] Criar constantes de recurso em `src/hooks/useGestorRQSecurity.ts`
+- [ ] Criar constantes de recurso em `src/hooks/useAppSecurity.ts`
 - [ ] Envolver view com `ArchbaseViewSecurityProvider`
 - [ ] Criar função `*Content` interna para o conteúdo
 - [ ] Usar `useArchbaseSecureForm` para obter permissões

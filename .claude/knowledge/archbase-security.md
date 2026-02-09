@@ -1,6 +1,6 @@
 # Archbase Security - Sistema de Segurança
 
-Este documento descreve como usar o sistema de segurança do Archbase React v3 no projeto Gestor-RQ.
+Este documento descreve como usar o sistema de segurança do Archbase React v3.
 
 ## Visão Geral
 
@@ -37,13 +37,13 @@ Provider específico para cada view/form. Registra o recurso e carrega permissõ
 ```tsx
 import { ArchbaseViewSecurityProvider } from '@archbase/security'
 
-export function MinhaView() {
+export function MyView() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName="modulo.entidade"
-      resourceDescription="Descrição da entidade"
+      resourceName="module.entity"
+      resourceDescription="Entity Description"
     >
-      <MinhaViewContent />
+      <MyViewContent />
     </ArchbaseViewSecurityProvider>
   )
 }
@@ -56,9 +56,9 @@ Hook para obter permissões dentro de um componente.
 ```tsx
 import { useArchbaseSecureForm } from '@archbase/security'
 
-function MinhaViewContent() {
+function MyViewContent() {
   const { canCreate, canEdit, canDelete, canView, isLoading } =
-    useArchbaseSecureForm('modulo.entidade', 'Descrição')
+    useArchbaseSecureForm('module.entity', 'Description')
 
   // Usar permissões para habilitar/desabilitar ações
   return (
@@ -74,14 +74,11 @@ function MinhaViewContent() {
 ### Padrão: `{modulo}.{entidade}`
 
 ```
-tms.mecanico          - Mecânicos
-tms.pecamaterial      - Peças e Materiais
-tms.tiposervico       - Tipos de Serviço
-tms.planomanutencao   - Planos de Manutenção
-tms.abastecimento     - Abastecimentos
-tms.ordemservico      - Ordens de Serviço
-checklist.modelo      - Modelos de Checklist
-viagem.monitor        - Monitor de Viagens
+catalog.product       - Products
+catalog.category      - Categories
+sales.order           - Orders
+sales.customer        - Customers
+admin.user            - Users
 ```
 
 ### Ações Padrão
@@ -95,42 +92,63 @@ viagem.monitor        - Monitor de Viagens
 ### Permissão Completa
 
 ```
-tms.mecanico.view
-tms.mecanico.create
-tms.mecanico.edit
-tms.mecanico.delete
+catalog.product.view
+catalog.product.create
+catalog.product.edit
+catalog.product.delete
 ```
 
-## Hook Customizado: useGestorRQSecurity
+## Hook Customizado: useAppSecurity
 
-O projeto possui um hook customizado para facilitar o uso:
+Crie um hook customizado para centralizar recursos de segurança:
 
 ```tsx
-import { useGestorRQSecurity, TMS_SECURITY_RESOURCES } from '../../../hooks'
+// src/hooks/useAppSecurity.ts
+import { useArchbaseSecureForm } from '@archbase/security'
 
-function MinhaView() {
-  const { canCreate, canEdit, canDelete, canView } = useGestorRQSecurity({
-    module: 'tms',
-    entity: 'mecanico',
-    description: 'Mecânicos'
-  })
+export const APP_SECURITY_RESOURCES = {
+  PRODUCT: { name: 'catalog.product', description: 'Products' },
+  CATEGORY: { name: 'catalog.category', description: 'Categories' },
+  ORDER: { name: 'sales.order', description: 'Orders' },
+  CUSTOMER: { name: 'sales.customer', description: 'Customers' },
+  USER: { name: 'admin.user', description: 'Users' },
 }
+
+export function useAppSecurity({
+  module,
+  entity,
+  description
+}: {
+  module: string
+  entity: string
+  description: string
+}) {
+  const resourceName = `${module}.${entity}`
+  return useArchbaseSecureForm(resourceName, description)
+}
+
+// Uso:
+const { canCreate, canEdit, canDelete, canView } = useAppSecurity({
+  module: 'catalog',
+  entity: 'product',
+  description: 'Products'
+})
 
 // Ou usando constantes
 const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
-  TMS_SECURITY_RESOURCES.MECANICO.name,
-  TMS_SECURITY_RESOURCES.MECANICO.description
+  APP_SECURITY_RESOURCES.PRODUCT.name,
+  APP_SECURITY_RESOURCES.PRODUCT.description
 )
 ```
 
-## Constantes de Recursos TMS
+## Constantes de Recursos
 
 ```tsx
-import { TMS_SECURITY_RESOURCES } from '../../../hooks'
+import { APP_SECURITY_RESOURCES } from '../../../hooks'
 
-TMS_SECURITY_RESOURCES.MECANICO.name        // 'tms.mecanico'
-TMS_SECURITY_RESOURCES.MECANICO.description // 'Mecânicos'
-TMS_SECURITY_RESOURCES.PECA_MATERIAL.name   // 'tms.pecamaterial'
+APP_SECURITY_RESOURCES.PRODUCT.name        // 'catalog.product'
+APP_SECURITY_RESOURCES.PRODUCT.description // 'Products'
+APP_SECURITY_RESOURCES.CATEGORY.name       // 'catalog.category'
 // etc.
 ```
 
@@ -140,23 +158,23 @@ TMS_SECURITY_RESOURCES.PECA_MATERIAL.name   // 'tms.pecamaterial'
 
 ```tsx
 import { ArchbaseViewSecurityProvider, useArchbaseSecureForm } from '@archbase/security'
-import { TMS_SECURITY_RESOURCES } from '../../../hooks'
+import { APP_SECURITY_RESOURCES } from '../../../hooks'
 
-export function EntidadeListView() {
+export function ProductListView() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName={TMS_SECURITY_RESOURCES.ENTIDADE.name}
-      resourceDescription={TMS_SECURITY_RESOURCES.ENTIDADE.description}
+      resourceName={APP_SECURITY_RESOURCES.PRODUCT.name}
+      resourceDescription={APP_SECURITY_RESOURCES.PRODUCT.description}
     >
-      <EntidadeListViewContent />
+      <ProductListViewContent />
     </ArchbaseViewSecurityProvider>
   )
 }
 
-function EntidadeListViewContent() {
+function ProductListViewContent() {
   const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
-    TMS_SECURITY_RESOURCES.ENTIDADE.name,
-    TMS_SECURITY_RESOURCES.ENTIDADE.description
+    APP_SECURITY_RESOURCES.PRODUCT.name,
+    APP_SECURITY_RESOURCES.PRODUCT.description
   )
 
   // Usar permissões nas ações
@@ -187,26 +205,26 @@ function EntidadeListViewContent() {
 
 ```tsx
 import { ArchbaseViewSecurityProvider, useArchbaseSecureForm } from '@archbase/security'
-import { TMS_SECURITY_RESOURCES } from '../../../hooks'
+import { APP_SECURITY_RESOURCES } from '../../../hooks'
 
-export function EntidadeForm() {
+export function ProductForm() {
   return (
     <ArchbaseViewSecurityProvider
-      resourceName={TMS_SECURITY_RESOURCES.ENTIDADE.name}
-      resourceDescription={TMS_SECURITY_RESOURCES.ENTIDADE.description}
+      resourceName={APP_SECURITY_RESOURCES.PRODUCT.name}
+      resourceDescription={APP_SECURITY_RESOURCES.PRODUCT.description}
     >
-      <EntidadeFormContent />
+      <ProductFormContent />
     </ArchbaseViewSecurityProvider>
   )
 }
 
-function EntidadeFormContent() {
+function ProductFormContent() {
   const { canCreate, canEdit } = useArchbaseSecureForm(
-    TMS_SECURITY_RESOURCES.ENTIDADE.name,
-    TMS_SECURITY_RESOURCES.ENTIDADE.description
+    APP_SECURITY_RESOURCES.PRODUCT.name,
+    APP_SECURITY_RESOURCES.PRODUCT.description
   )
 
-  const isAddAction = action === 'ADD'
+  const isAddAction = action.toUpperCase() === 'ADD'
   const canSave = isAddAction ? canCreate : canEdit
 
   return (
@@ -250,15 +268,15 @@ Request:
 ```json
 {
   "resource": {
-    "resourceName": "tms.mecanico",
-    "resourceDescription": "Mecânicos"
+    "resourceName": "catalog.product",
+    "resourceDescription": "Products"
   },
   "actions": [
-    { "actionName": "create", "actionDescription": "Criar Mecânicos" },
-    { "actionName": "edit", "actionDescription": "Editar Mecânicos" },
-    { "actionName": "delete", "actionDescription": "Deletar Mecânicos" },
-    { "actionName": "view", "actionDescription": "Visualizar Mecânicos" },
-    { "actionName": "list", "actionDescription": "Listar Mecânicos" }
+    { "actionName": "create", "actionDescription": "Create Products" },
+    { "actionName": "edit", "actionDescription": "Edit Products" },
+    { "actionName": "delete", "actionDescription": "Delete Products" },
+    { "actionName": "view", "actionDescription": "View Products" },
+    { "actionName": "list", "actionDescription": "List Products" }
   ]
 }
 ```
@@ -266,26 +284,22 @@ Request:
 Response:
 ```json
 {
-  "resourceName": "tms.mecanico",
+  "resourceName": "catalog.product",
   "permissions": ["create", "edit", "view", "list"]
 }
 ```
 
-## Arquivos Modificados
+## Arquivos a Criar/Modificar
 
 ### Configuração
 - `src/App.tsx` - ArchbaseSecurityProvider global
 
 ### Hooks
-- `src/hooks/useGestorRQSecurity.ts` - Hook customizado
+- `src/hooks/useAppSecurity.ts` - Hook customizado
 - `src/hooks/index.ts` - Exports
 
-### Views TMS (ListViews)
-- `src/views/tms/mecanicos/MecanicoListView.tsx`
-- `src/views/tms/tipos-servico/TipoServicoListView.tsx`
-- `src/views/tms/abastecimentos/AbastecimentoListView.tsx`
-- `src/views/tms/pecas-materiais/PecaMaterialListView.tsx`
-- `src/views/tms/planos-manutencao/PlanoManutencaoListView.tsx`
-
-### Views TMS (Forms)
-- `src/views/tms/mecanicos/MecanicoForm.tsx`
+### Views (exemplo)
+- `src/views/catalog/products/ProductListView.tsx`
+- `src/views/catalog/products/ProductForm.tsx`
+- `src/views/sales/orders/OrderListView.tsx`
+- `src/views/sales/orders/OrderForm.tsx`

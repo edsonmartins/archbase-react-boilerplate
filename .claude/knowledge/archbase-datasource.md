@@ -565,13 +565,13 @@ export function MecanicoForm() {
     isLoading
   } = useArchbaseRemoteDataSourceV2<MecanicoDto>({
     name: 'dsMecanico',
-    label: String(t('gestor-rq-admin:Mecânico')),
+    label: String(t('my-app:Mecânico')),
     service: serviceApi,
     pageSize: 50,
     defaultSortFields: ['nome'],
     validator,
     onError: (error) => {
-      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error)
+      ArchbaseNotifications.showError(String(t('my-app:Atenção')), error)
     }
   })
 
@@ -597,7 +597,7 @@ export function MecanicoForm() {
             dataSource.edit()
           }
         } catch (error: any) {
-          ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), String(error))
+          ArchbaseNotifications.showError(String(t('my-app:Atenção')), String(error))
         }
       }
     }
@@ -613,8 +613,8 @@ export function MecanicoForm() {
   const handleCancel = () => {
     if (!isViewAction) {
       ArchbaseDialog.showConfirmDialogYesNo(
-        String(t('gestor-rq-admin:Confirme')),
-        String(t('gestor-rq-admin:Deseja cancelar a edição/inserção?')),
+        String(t('my-app:Confirme')),
+        String(t('my-app:Deseja cancelar a edição/inserção?')),
         () => {
           if (!dataSource.isBrowsing()) {
             dataSource.cancel()
@@ -644,14 +644,14 @@ export function MecanicoForm() {
         <Grid.Col span={{ base: 12, md: 6 }}>
           <Stack gap="md">
             <ArchbaseEdit<MecanicoDto, string>
-              label={String(t('gestor-rq-admin:Nome'))}
+              label={String(t('my-app:Nome'))}
               dataSource={dataSource}
               dataField="nome"
-              placeholder={String(t('gestor-rq-admin:Digite o nome'))}
+              placeholder={String(t('my-app:Digite o nome'))}
               required
             />
             <ArchbaseNumberEdit<MecanicoDto, number>
-              label={String(t('gestor-rq-admin:Valor/Hora (R$)'))}
+              label={String(t('my-app:Valor/Hora (R$)'))}
               dataSource={dataSource}
               dataField="valorHora"
               precision={2}
@@ -660,7 +660,7 @@ export function MecanicoForm() {
               width={180}
             />
             <ArchbaseSwitch<MecanicoDto, boolean>
-              label={String(t('gestor-rq-admin:Ativo'))}
+              label={String(t('my-app:Ativo'))}
               dataSource={dataSource}
               dataField="ativo"
             />
@@ -668,7 +668,7 @@ export function MecanicoForm() {
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
           <ArchbaseTextArea<MecanicoDto, string>
-            label={String(t('gestor-rq-admin:Observação'))}
+            label={String(t('my-app:Observação'))}
             dataSource={dataSource}
             dataField="observacoes"
             autosize

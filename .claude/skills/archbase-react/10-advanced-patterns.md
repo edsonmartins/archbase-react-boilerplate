@@ -1,6 +1,6 @@
 # 10. Padrões Avançados
 
-Padrões avançados identificados no projeto gestor-rq-admin para views complexas, dashboards, gráficos e mais.
+Padrões avançados para views complexas, dashboards, gráficos e mais.
 
 ---
 
@@ -451,8 +451,8 @@ export function useDashboardData<T>(
         setHasLoaded(true)
         if (showSuccessNotification) {
           notifications.show({
-            title: t('gestor-rq-admin:Sucesso'),
-            message: t('gestor-rq-admin:Dados carregados com sucesso'),
+            title: t('my-app:Sucesso'),
+            message: t('my-app:Dados carregados com sucesso'),
             color: 'green'
           })
         }
@@ -464,7 +464,7 @@ export function useDashboardData<T>(
         setError(errorObj)
         setHasLoaded(true)
         if (showErrorNotification) {
-          ArchbaseNotifications.showError(t('gestor-rq-admin:Erro'), errorObj.message)
+          ArchbaseNotifications.showError(t('my-app:Erro'), errorObj.message)
         }
         onError?.(errorObj)
       }

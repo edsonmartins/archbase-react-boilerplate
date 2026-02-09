@@ -62,13 +62,13 @@ export function UserForm() {
   // useArchbaseRemoteDataSourceV2 - PADRÃO RECOMENDADO
   const { dataSource, isLoading } = useArchbaseRemoteDataSourceV2<UserDto>({
     name: 'dsUser',
-    label: String(t('gestor-rq-admin:Usuário')),
+    label: String(t('my-app:Usuário')),
     service: serviceApi,
     pageSize: 50,
     defaultSortFields: ['nome'],
     validator,
     onError: (error) => {
-      ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), error)
+      ArchbaseNotifications.showError(String(t('my-app:Atenção')), error)
     }
   })
 
@@ -94,7 +94,7 @@ export function UserForm() {
             dataSource.edit()
           }
         } catch (error: any) {
-          ArchbaseNotifications.showError(String(t('gestor-rq-admin:Atenção')), String(error))
+          ArchbaseNotifications.showError(String(t('my-app:Atenção')), String(error))
         }
       }
     }
@@ -110,8 +110,8 @@ export function UserForm() {
   const handleCancel = () => {
     if (!isViewAction) {
       ArchbaseDialog.showConfirmDialogYesNo(
-        String(t('gestor-rq-admin:Confirme')),
-        String(t('gestor-rq-admin:Deseja cancelar?')),
+        String(t('my-app:Confirme')),
+        String(t('my-app:Deseja cancelar?')),
         () => {
           if (!dataSource.isBrowsing()) {
             dataSource.cancel()
@@ -140,14 +140,14 @@ export function UserForm() {
         <Grid.Col span={{ base: 12, md: 6 }}>
           <Stack gap="md">
             <ArchbaseEdit<UserDto, string>
-              label={String(t('gestor-rq-admin:Nome'))}
+              label={String(t('my-app:Nome'))}
               dataSource={dataSource}
               dataField="nome"
-              placeholder={String(t('gestor-rq-admin:Digite o nome'))}
+              placeholder={String(t('my-app:Digite o nome'))}
               required
             />
             <ArchbaseSwitch<UserDto, boolean>
-              label={String(t('gestor-rq-admin:Ativo'))}
+              label={String(t('my-app:Ativo'))}
               dataSource={dataSource}
               dataField="ativo"
             />

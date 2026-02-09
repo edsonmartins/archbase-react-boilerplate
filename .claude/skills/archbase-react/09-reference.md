@@ -182,7 +182,7 @@ const { closeAllowed } = useArchbaseNavigationListener(ROUTE, () => {
 ## Segurança - Checklist
 
 - [ ] `ArchbaseSecurityProvider` no `App.tsx`
-- [ ] Constantes em `useGestorRQSecurity.ts`
+- [ ] Constantes em `useAppSecurity.ts`
 - [ ] `ArchbaseViewSecurityProvider` na view
 - [ ] Função `*Content` interna
 - [ ] `useArchbaseSecureForm` para permissões
@@ -319,17 +319,17 @@ const renderStatus = (status: StatusItem): ReactNode => {
 ## Constantes de Segurança
 
 ```typescript
-// src/hooks/useGestorRQSecurity.ts
-export const TMS_SECURITY_RESOURCES = {
-  MECANICO: { name: 'tms.mecanico', description: 'Mecânicos' },
-  PECA_MATERIAL: { name: 'tms.pecamaterial', description: 'Peças e Materiais' },
-  TIPO_SERVICO: { name: 'tms.tiposervico', description: 'Tipos de Serviço' },
-  ORDEM_SERVICO: { name: 'tms.ordemservico', description: 'Ordens de Serviço' },
-  VEICULO: { name: 'frota.veiculo', description: 'Veículos' }
+// src/hooks/useAppSecurity.ts
+export const APP_SECURITY_RESOURCES = {
+  PRODUCT: { name: 'catalog.product', description: 'Products' },
+  CATEGORY: { name: 'catalog.category', description: 'Categories' },
+  ORDER: { name: 'sales.order', description: 'Orders' },
+  CUSTOMER: { name: 'sales.customer', description: 'Customers' },
+  USER: { name: 'admin.user', description: 'Users' }
 } as const
 
 // Hook customizado
-export function useGestorRQSecurity({ module, entity, description }: {
+export function useAppSecurity({ module, entity, description }: {
   module: string
   entity: string
   description: string
@@ -340,10 +340,10 @@ export function useGestorRQSecurity({ module, entity, description }: {
 }
 
 // Uso
-const { canCreate, canEdit, canDelete, canView } = useGestorRQSecurity({
-  module: 'tms',
-  entity: 'mecanico',
-  description: 'Mecânicos'
+const { canCreate, canEdit, canDelete, canView } = useAppSecurity({
+  module: 'catalog',
+  entity: 'product',
+  description: 'Products'
 })
 ```
 
@@ -363,10 +363,10 @@ export const API_TYPE = {
   ApiClient: ARCHBASE_IOC_API_TYPE.ApiClient,
 
   // Services do projeto
-  Veiculo: Symbol.for('VeiculoService'),
-  Motorista: Symbol.for('MotoristaService'),
-  OrdemServico: Symbol.for('OrdemServicoService'),
-  ChecklistModelo: Symbol.for('ChecklistModeloService')
+  Product: Symbol.for('ProductService'),
+  Category: Symbol.for('CategoryService'),
+  Order: Symbol.for('OrderService'),
+  Customer: Symbol.for('CustomerService')
 }
 ```
 
@@ -385,18 +385,18 @@ if (!container.isBound(ARCHBASE_IOC_API_TYPE.ApiClient)) {
 }
 
 // Services
-container.bind<VeiculoService>(API_TYPE.Veiculo).to(VeiculoService)
-container.bind<MotoristaService>(API_TYPE.Motorista).to(MotoristaService)
-container.bind<OrdemServicoService>(API_TYPE.OrdemServico).to(OrdemServicoService)
+container.bind<ProductService>(API_TYPE.Product).to(ProductService)
+container.bind<CategoryService>(API_TYPE.Category).to(CategoryService)
+container.bind<OrderService>(API_TYPE.Order).to(OrderService)
 ```
 
 ### Usar no Componente
 
 ```typescript
-const serviceApi = useArchbaseRemoteServiceApi<VeiculoService>(API_TYPE.Veiculo)
+const serviceApi = useArchbaseRemoteServiceApi<ProductService>(API_TYPE.Product)
 
 // Ou com useInjection (Inversify React)
-const service = useInjection<VeiculoService>(API_TYPE.Veiculo)
+const service = useInjection<ProductService>(API_TYPE.Product)
 ```
 
 ---
