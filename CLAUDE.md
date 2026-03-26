@@ -113,36 +113,41 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
 
   // OBRIGATÓRIO: Verificar se é registro novo
   public isNewRecord(entity: UserDto): boolean {
-    return !entity.id || entity.id === ''
+    return entity.isNew
   }
 
-  // OBRIGATÓRIO: Headers padrão
+  // OBRIGATÓRIO: Headers padrão (pode retornar vazio)
   protected configureHeaders(): Record<string, string> {
-    return { 'Content-Type': 'application/json' }
+    return {}
+  }
+
+  // OPCIONAL: Transformar dados da API para DTO
+  protected transform(data: any): UserDto {
+    return new UserDto(data)
   }
 }
 ```
 
 **IMPORTANTE**: Usar `findOne(id)`, NÃO `findById(id)`!
 
-### 3. DataSource
+### 3. DataSource (V2 Recomendado)
 
-O `ArchbaseDataSource` é central para binding de dados:
+Use `useArchbaseRemoteDataSourceV2` para list views e forms:
 
 ```typescript
-// Construtor simples - apenas nome
-const [dataSource] = useState(() =>
-  new ArchbaseDataSource<UserDto, string>('dsUser')
-)
-
-// Configurar validador separadamente
-useEffect(() => {
-  dataSource.setValidator(new ArchbaseValidator())
-}, [])
+const { dataSource, isLoading, error, refreshData } = useArchbaseRemoteDataSourceV2<UserDto>({
+  name: 'dsUser',
+  label: 'Usuário',
+  service: serviceApi,
+  pageSize: 25,
+  defaultSortFields: ['nome'],
+  validator,
+  onError: (error) => ArchbaseNotifications.showError('Atenção', error)
+})
 ```
 
 **Operações corretas:**
-- Carregar: `dataSource.open({ records: [...] })` (NÃO `setData`)
+- Carregar: `dataSource.setRecords([dto])` ou `dataSource.open({ records: [...] })`
 - Inserir: `dataSource.insert({...})` (NÃO `append`)
 - Salvar: `dataSource.save()` (NÃO `post`)
 - Remover: `dataSource.remove()` (NÃO `delete`)
@@ -151,20 +156,30 @@ useEffect(() => {
 
 ### 4. Formulários
 
-Use `ArchbaseFormTemplate` com `useArchbaseSize`:
+Use `ArchbaseFormTemplate` com `ValidationErrorsProvider` e Tabs:
 
 ```typescript
-// CORRETO: useArchbaseSize retorna [width, height]
-const ref = useRef<HTMLDivElement>(null)
-const [width, height] = useArchbaseSize(ref)
-const safeHeight = height > 0 ? height - 130 : 600
-
 return (
-  <ArchbaseFormTemplate innerRef={ref} dataSource={dataSource}>
-    <Paper ref={ref} withBorder style={{ height: safeHeight }}>
-      <ArchbaseEdit dataSource={dataSource} dataField="name" />
-    </Paper>
-  </ArchbaseFormTemplate>
+  <ValidationErrorsProvider>
+    <ArchbaseFormTemplate
+      title={isAddAction ? 'Novo Usuário' : 'Editar Usuário'}
+      dataSource={dataSource}
+      onCancel={handleCancel}
+      onAfterSave={handleAfterSave}
+      withBorder={false}
+    >
+      <LoadingOverlay visible={isLoading} />
+      <Tabs variant="pills" defaultValue="dados"
+        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Tabs.List style={{ flexShrink: 0 }}>
+          <Tabs.Tab value="dados">Dados Gerais</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="dados" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <ArchbaseEdit dataSource={dataSource} dataField="name" />
+        </Tabs.Panel>
+      </Tabs>
+    </ArchbaseFormTemplate>
+  </ValidationErrorsProvider>
 )
 ```
 
@@ -257,21 +272,25 @@ import { ErrorFallback } from '@utils/ErrorFallback'
 | Errado | Correto |
 |--------|---------|
 | `ArchbaseDataTable` | `ArchbaseDataGrid` |
-| `ArchbaseListTemplate` | `ArchbasePanelTemplate` |
+| `ArchbaseListTemplate` | `ArchbaseGridTemplate` (list views CRUD) |
 | `caption` / `width` | `header` / `size` |
 | `columns={[...]}` | `<Columns><ArchbaseDataGridColumn /></Columns>` |
-| `dataSource.setData()` | `dataSource.open({ records })` |
+| `dataSource.setData()` | `dataSource.open({ records })` ou V2: `dataSource.setRecords()` |
 | `dataSource.post()` | `dataSource.save()` |
 | `dataSource.append()` | `dataSource.insert()` |
 | `dataSource.delete()` | `dataSource.remove()` |
 | `service.findById()` | `service.findOne()` |
 | `<ArchbaseSelect data={}>` | `<ArchbaseSelect options getOptionLabel getOptionValue>` |
-| `{ ref, height } = useArchbaseSize()` | `[width, height] = useArchbaseSize(ref)` |
+| `isNewRecord` com `!entity.id` | `entity.isNew` |
+| DTO como interface | DTO como **classe** com constructor e `isNew: boolean` |
+| `configureHeaders` com Content-Type | `configureHeaders` retornando `{}` |
+| `useArchbaseRemoteDataSource` + cast | `useArchbaseRemoteDataSourceV2` sem cast |
+| `action === 'ADD'` | `action.toUpperCase() === 'ADD'` |
 
 ## Erros Comuns
 
 ### "width: 0px, height: 0px"
-Usar `const ref = useRef(); [width, height] = useArchbaseSize(ref)` e passar `innerRef={ref}`.
+Em list views, usar `const { ref, height } = useElementSize()` do Mantine.
 
 ### "Property 'validator' does not exist"
 Validator vai no DataSource: `dataSource.setValidator(...)`, não no FormTemplate.

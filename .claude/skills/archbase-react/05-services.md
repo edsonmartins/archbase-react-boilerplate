@@ -42,9 +42,9 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
     return entity.id || ''
   }
 
-  // OBRIGATÓRIO: Verificar se é novo (usar __isNew!)
+  // OBRIGATÓRIO: Verificar se é novo (usar isNew!)
   public isNewRecord(entity: UserDto): boolean {
-    return entity.__isNew === true  // Usar __isNew, NÃO verificar id vazio
+    return entity.isNew  // Usar campo isNew do DTO
   }
 }
 ```
@@ -53,8 +53,9 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
 
 1. **Type import**: `import type { ArchbaseRemoteApiClient }` - evita erro de decorator
 2. **Endpoint no plural**: `/api/v1/users` (não `/api/v1/user`)
-3. **`__isNew`**: Use `entity.__isNew === true` para verificar registro novo
+3. **`isNew`**: Use `entity.isNew` para verificar registro novo
 4. **getId()**: Sempre retornar o ID da entidade
+5. **`transform()`**: Método opcional para converter dados da API para DTO
 
 ---
 
@@ -186,30 +187,47 @@ class UserService extends ArchbaseRemoteApiService<UserDto, string> {
 ## DTOs com newInstance
 
 ```typescript
-import { v4 as uuidv4 } from 'uuid'
+import { IsNotEmpty, IsString, IsEnum } from 'class-validator'
+
+export enum StatusUser {
+  ATIVO = 'ATIVO',
+  INATIVO = 'INATIVO',
+}
+
+export const StatusUserValues = [
+  { value: StatusUser.ATIVO, label: 'Ativo' },
+  { value: StatusUser.INATIVO, label: 'Inativo' },
+]
 
 export class UserDto {
-  id?: string
-  __isNew?: boolean  // OBRIGATÓRIO
+  @IsNotEmpty({ message: 'ID é obrigatório' })
+  id: string
+
+  @IsNotEmpty({ message: 'Nome é obrigatório' })
+  @IsString()
   nome: string
+
   email: string
-  ativo: boolean
+
+  @IsEnum(StatusUser)
+  status: StatusUser
+
+  isNew: boolean  // OBRIGATÓRIO: campo para controle de novo registro
 
   constructor(data: any = {}) {
-    this.id = data.id
-    this.__isNew = data.__isNew ?? false
+    this.id = data.id || ''
     this.nome = data.nome || ''
     this.email = data.email || ''
-    this.ativo = data.ativo ?? true
+    this.status = data.status || StatusUser.ATIVO
+    this.isNew = data.isNew || false
   }
 
   static newInstance = () => {
     return new UserDto({
-      id: uuidv4(),      // Gerar UUID
-      __isNew: true,     // Marcar como novo
       nome: '',
       email: '',
-      ativo: true
+      status: StatusUser.ATIVO,
+      isNew: true,     // Marcar como novo
     })
   }
 }
@@ -217,9 +235,25 @@ export class UserDto {
 
 ### Por quê `newInstance()`?
 
-- Gera UUID automaticamente para evitar colisões
-- Marca `__isNew: true` para o `isNewRecord()` funcionar
+- Marca `isNew: true` para o `isNewRecord()` funcionar
 - Define valores padrão sensatos
+- Usa class-validator para validação
+
+### Padrão Enum + Values
+
+Sempre crie um enum e um array de values para selects:
+
+```typescript
+export enum StatusItem {
+  ATIVO = 'ATIVO',
+  INATIVO = 'INATIVO',
+}
+
+export const StatusItemValues = [
+  { value: StatusItem.ATIVO, label: 'Ativo' },
+  { value: StatusItem.INATIVO, label: 'Inativo' },
+]
+```
 
 ---
 
@@ -229,6 +263,8 @@ export class UserDto {
 |--------|---------|
 | `import { ArchbaseRemoteApiClient }` | `import type { ArchbaseRemoteApiClient }` |
 | `/api/v1/user` (singular) | `/api/v1/users` (plural) |
-| `!entity.id` para `isNewRecord` | `entity.__isNew === true` |
+| `!entity.id` para `isNewRecord` | `entity.isNew` |
 | `service.findById()` | `service.findOne()` |
-| Sem `newInstance()` | Sempre criar com UUID e `__isNew` |
+| Sem `newInstance()` | Sempre criar com `isNew: true` |
+| DTO como interface | DTO como **classe** com constructor e class-validator |
+| `configureHeaders` com Content-Type | `configureHeaders` retornando `{}` |

@@ -115,47 +115,111 @@ admin.user            - Users
 
 ---
 
-## Hook Customizado (Recomendado)
+## Hooks Customizados (Recomendado)
 
-Crie um hook customizado para centralizar recursos de segurança:
+### 1. Constantes de Segurança por Módulo
 
 ```typescript
-// src/hooks/useAppSecurity.ts
+// src/security/securityResources.ts
+export const CATALOG_SECURITY_RESOURCES = {
+  PRODUCT: { name: 'catalog.product', description: 'Produtos' },
+  CATEGORY: { name: 'catalog.category', description: 'Categorias' },
+}
+
+export const SALES_SECURITY_RESOURCES = {
+  ORDER: { name: 'sales.order', description: 'Pedidos' },
+  CUSTOMER: { name: 'sales.customer', description: 'Clientes' },
+}
+
+export const ADMIN_SECURITY_RESOURCES = {
+  USER: { name: 'admin.user', description: 'Usuários' },
+}
+```
+
+### 2. Hook useSecureActions (Produção)
+
+Hook wrapper que adiciona `can()`, `canAny()`, `canAll()` para ações customizadas:
+
+```typescript
+// src/hooks/useSecureActions.ts
+import { useCallback, useEffect, useMemo } from 'react'
 import { useArchbaseSecureForm } from '@archbase/security'
 
-export const APP_SECURITY_RESOURCES = {
-  PRODUCT: { name: 'catalog.product', description: 'Products' },
-  CATEGORY: { name: 'catalog.category', description: 'Categories' },
-  ORDER: { name: 'sales.order', description: 'Orders' },
-  CUSTOMER: { name: 'sales.customer', description: 'Customers' },
-  USER: { name: 'admin.user', description: 'Users' },
-}
-
-export function useAppSecurity({
-  module,
-  entity,
-  description
-}: {
-  module: string
-  entity: string
+interface SecurityAction {
+  name: string
   description: string
-}) {
-  const resourceName = `${module}.${entity}`
-  return useArchbaseSecureForm(resourceName, description)
 }
 
-// Uso:
-const { canCreate, canEdit, canDelete, canView } = useAppSecurity({
-  module: 'catalog',
-  entity: 'product',
-  description: 'Products'
-})
+export function useSecureActions(
+  resourceName: string,
+  resourceDescription: string,
+  customActions: SecurityAction[] = []
+) {
+  const secureForm = useArchbaseSecureForm(resourceName, resourceDescription)
 
-// Ou usando constantes:
-const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
-  APP_SECURITY_RESOURCES.PRODUCT.name,
-  APP_SECURITY_RESOURCES.PRODUCT.description
+  useEffect(() => {
+    if (customActions.length > 0 && secureForm.registerAction) {
+      customActions.forEach(action => {
+        secureForm.registerAction(action.name, action.description)
+      })
+    }
+  }, [])
+
+  const can = useCallback(
+    (actionName: string): boolean => {
+      return secureForm.hasPermission ? secureForm.hasPermission(actionName) : false
+    },
+    [secureForm]
+  )
+
+  const canAny = useCallback(
+    (actionNames: string[]): boolean => {
+      return secureForm.hasAnyPermission
+        ? secureForm.hasAnyPermission(actionNames)
+        : actionNames.some(name => can(name))
+    },
+    [secureForm, can]
+  )
+
+  const canAll = useCallback(
+    (actionNames: string[]): boolean => {
+      return secureForm.hasAllPermissions
+        ? secureForm.hasAllPermissions(actionNames)
+        : actionNames.every(name => can(name))
+    },
+    [secureForm, can]
+  )
+
+  return {
+    canCreate: secureForm.canCreate,
+    canEdit: secureForm.canEdit,
+    canDelete: secureForm.canDelete,
+    canView: secureForm.canView,
+    canList: secureForm.canList,
+    can,
+    canAny,
+    canAll,
+    isLoading: secureForm.isLoading,
+    error: secureForm.error,
+  }
+}
+
+// Uso padrão (CRUD):
+const { canCreate, canEdit, canDelete, canView } = useSecureActions(
+  CATALOG_SECURITY_RESOURCES.PRODUCT.name,
+  CATALOG_SECURITY_RESOURCES.PRODUCT.description,
 )
+
+// Uso com ações customizadas:
+const { canCreate, canEdit, can } = useSecureActions(
+  CATALOG_SECURITY_RESOURCES.PRODUCT.name,
+  CATALOG_SECURITY_RESOURCES.PRODUCT.description,
+  [
+    { name: 'approve', description: 'Aprovar produto' },
+    { name: 'export', description: 'Exportar produtos' },
+  ]
+)
+if (can('approve')) { /* ... */ }
 ```
 
 ---

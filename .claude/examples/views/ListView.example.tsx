@@ -1,273 +1,237 @@
 /**
- * Exemplo: List View com Archbase
+ * Exemplo: List View com ArchbaseGridTemplate
  *
- * Este exemplo demonstra como criar uma view de listagem
- * com ArchbaseDataGrid, filtros e ações.
+ * Padrão validado contra gestor-rq-admin (produção).
  *
- * IMPORTANTE: Este exemplo usa as APIs corretas da biblioteca archbase-react-v3
- * - ArchbaseDataGrid (não ArchbaseDataTable)
- * - Colunas com children pattern (não array)
- * - header (não caption), size (não width), dataType obrigatório
+ * IMPORTANTE:
+ * - ArchbaseGridTemplate (não ArchbasePanelTemplate) para list views CRUD
+ * - useArchbaseRemoteDataSourceV2 (não V1 + React Query)
+ * - useElementSize do Mantine para altura do container
+ * - Segurança com ArchbaseViewSecurityProvider + useSecureActions
+ * - Colunas com <Columns> + useMemo
  */
 
-import { useState, useEffect, useRef } from 'react'
-import { Paper, Group, ActionIcon, Badge, TextInput, Select, Button, Box, Collapse } from '@mantine/core'
-import { IconEye, IconEdit, IconTrash, IconSearch, IconFilter } from '@tabler/icons-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { modals } from '@mantine/modals'
+import { useRef, useMemo, useState, type ReactNode } from 'react'
+import { Paper, Badge } from '@mantine/core'
+import { useElementSize, useDisclosure } from '@mantine/hooks'
+import { IconCheckbox, IconSquare } from '@tabler/icons-react'
 
-// CORRETO: importar ArchbaseDataGrid, não ArchbaseDataTable
 import {
-  ArchbaseDataSource,
   ArchbaseDataGrid,
   ArchbaseDataGridColumn,
-  Columns
+  Columns,
+  ArchbaseNotifications,
 } from '@archbase/components'
-import { ArchbasePanelTemplate, useArchbaseSize } from '@archbase/template'
-import { useArchbaseRemoteServiceApi } from '@archbase/data'
+import {
+  ArchbaseGridTemplate,
+  type ArchbaseGridTemplateRef,
+} from '@archbase/template'
+import {
+  useArchbaseRemoteDataSourceV2,
+  useArchbaseRemoteServiceApi,
+} from '@archbase/data'
+import {
+  ArchbaseViewSecurityProvider,
+  useArchbaseSecureForm,
+} from '@archbase/security'
+import { useArchbaseTranslation } from '@archbase/core'
 
-import { API_TYPE } from '@ioc/IOCTypes'
-import type { UserService } from '@services/UserService'
-import type { UserDto } from '@domain/UserDto'
+import { API_TYPE } from '../../ioc/RapidexIOCTypes'
+import type { UserService } from '../../services/UserService'
+import type { UserDto } from '../../domain/user/UserDto'
+import { APP_SECURITY_RESOURCES } from '../../hooks/useAppSecurity'
 
 // ===========================================
-// TIPOS
+// 1. VIEW EXTERNA: Wrapper de Segurança
 // ===========================================
-interface UserListViewProps {
-  onNew: () => void
-  onEdit: (id: string) => void
-  onView: (id: string) => void
+export function UserListView() {
+  return (
+    <ArchbaseViewSecurityProvider
+      resourceName={APP_SECURITY_RESOURCES.USER.name}
+      resourceDescription={APP_SECURITY_RESOURCES.USER.description}
+    >
+      <UserListViewContent />
+    </ArchbaseViewSecurityProvider>
+  )
 }
 
 // ===========================================
-// COMPONENTE
+// 2. RENDER FUNCTIONS (fora do useMemo)
 // ===========================================
-export function UserListView({ onNew, onEdit, onView }: UserListViewProps) {
-  // ------------------------------------------
-  // Hooks - CORRETO: useArchbaseSize retorna [width, height]
-  // ------------------------------------------
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, height] = useArchbaseSize(ref)
-  const safeHeight = height > 0 ? height - 200 : 400
+const renderBoolean = (value?: boolean): ReactNode => {
+  return value ? (
+    <IconCheckbox size={24} color="green" stroke={2} />
+  ) : (
+    <IconSquare size={24} color="gray" stroke={2} />
+  )
+}
 
-  const queryClient = useQueryClient()
-  const userService = useArchbaseRemoteServiceApi<UserService>(API_TYPE.UserService)
+const statusColors: Record<string, string> = {
+  ATIVO: 'green',
+  INATIVO: 'gray',
+  PENDENTE: 'yellow',
+}
 
-  // ------------------------------------------
-  // Estado local
-  // ------------------------------------------
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
-    name: '',
-    status: ''
-  })
+// ===========================================
+// 3. VIEW INTERNA: Lógica e UI
+// ===========================================
+function UserListViewContent() {
+  const { t } = useArchbaseTranslation()
 
-  // ------------------------------------------
-  // DataSource - CORRETO: construtor simples
-  // ------------------------------------------
-  const [dataSource] = useState(() =>
-    new ArchbaseDataSource<UserDto, string>('dsUsers')
+  // Segurança
+  const { canCreate, canEdit, canDelete, canView } = useArchbaseSecureForm(
+    APP_SECURITY_RESOURCES.USER.name,
+    APP_SECURITY_RESOURCES.USER.description,
   )
 
-  // ------------------------------------------
-  // Query para buscar dados
-  // ------------------------------------------
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['users', filters],
-    queryFn: () => userService.findAll(0, 100)
+  // Refs e tamanho
+  const templateRef = useRef<ArchbaseGridTemplateRef | null>(null)
+  const { ref: containerRef, height: containerHeight } = useElementSize()
+
+  // Modal de detalhes (opcional)
+  const [detailsOpened, { open: openDetails, close: closeDetails }] = useDisclosure(false)
+  const [selectedUser, setSelectedUser] = useState<UserDto | null>(null)
+
+  // Service API via IoC
+  const serviceApi = useArchbaseRemoteServiceApi<UserService>(API_TYPE.User)
+
+  // DataSource V2 Remoto com paginação
+  const {
+    dataSource,
+    isLoading,
+    error,
+    refreshData,
+    remove,
+  } = useArchbaseRemoteDataSourceV2<UserDto>({
+    name: 'dsUsers',
+    label: String(t('my-app:Usuários')),
+    service: serviceApi,
+    pageSize: 25,
+    defaultSortFields: ['name'],
+    onError: (err) => {
+      ArchbaseNotifications.showError(
+        String(t('my-app:Atenção')),
+        String(err),
+      )
+    },
   })
 
-  // ------------------------------------------
-  // Mutation para deletar
-  // ------------------------------------------
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => userService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    }
-  })
+  // Estado de erro local
+  const [lastError, setLastError] = useState<string | null>(null)
+  const handleClearError = () => setLastError(null)
 
-  // ------------------------------------------
-  // Effect para popular DataSource
-  // CORRETO: usar open(), não setData()
-  // ------------------------------------------
-  useEffect(() => {
-    if (data?.content) {
-      dataSource.open({ records: data.content })
-    }
-  }, [data])
+  // Colunas com useMemo
+  const columns: ReactNode = useMemo(() => {
+    return (
+      <Columns>
+        <ArchbaseDataGridColumn<UserDto>
+          dataField="name"
+          dataType="text"
+          header={String(t('my-app:Nome'))}
+          inputFilterType="text"
+          size={300}
+        />
+        <ArchbaseDataGridColumn<UserDto>
+          dataField="email"
+          dataType="text"
+          header={String(t('my-app:E-mail'))}
+          inputFilterType="text"
+          size={250}
+        />
+        <ArchbaseDataGridColumn<UserDto>
+          dataField="status"
+          dataType="text"
+          header={String(t('my-app:Status'))}
+          size={120}
+          align="center"
+          render={(data) => (
+            <Badge
+              color={statusColors[data.getValue()] || 'gray'}
+              variant="filled"
+              size="md"
+            >
+              {data.getValue()}
+            </Badge>
+          )}
+        />
+        <ArchbaseDataGridColumn<UserDto>
+          dataField="active"
+          dataType="boolean"
+          header={String(t('my-app:Ativo'))}
+          size={80}
+          align="center"
+          render={(data) => renderBoolean(data.getValue())}
+        />
+      </Columns>
+    )
+  }, [t])
 
-  // ------------------------------------------
-  // Handlers
-  // ------------------------------------------
-  const handleDelete = (record: UserDto) => {
-    modals.openConfirmModal({
-      title: 'Confirmar exclusão',
-      children: `Deseja realmente excluir o usuário "${record.name}"?`,
-      labels: { confirm: 'Excluir', cancel: 'Cancelar' },
-      confirmProps: { color: 'red' },
-      onConfirm: () => deleteMutation.mutate(record.id)
-    })
+  // Handlers de navegação
+  const handleAdd = () => {
+    // navigate(`/users/new?action=add`)
   }
 
-  const handleClearFilters = () => {
-    setFilters({ name: '', status: '' })
+  const handleEdit = (row: UserDto) => {
+    // navigate(`/users/${row.id}?action=edit`)
   }
 
-  // ------------------------------------------
-  // Altura ajustada com filtros
-  // ------------------------------------------
-  const gridHeight = showFilters ? safeHeight - 100 : safeHeight - 20
+  const handleView = (row: UserDto) => {
+    // navigate(`/users/${row.id}?action=view`)
+  }
 
-  // ------------------------------------------
-  // Render
-  // CORRETO: usar ArchbasePanelTemplate (não ArchbaseListTemplate)
-  // ------------------------------------------
+  const handleRemove = async (row: UserDto) => {
+    // Confirmação e remoção
+  }
+
+  const getRowId = (row: UserDto) => row.id
+
+  // Row actions
+  const userRowActions = {
+    // Configurar ações por linha
+  }
+
   return (
-    <ArchbasePanelTemplate
-      innerRef={ref}
-      title="Usuários"
-      isLoading={isLoading || deleteMutation.isPending}
-      isError={isError}
-      error={error}
-      onNewRecord={onNew}
-      headerActions={
-        <Group gap="sm">
-          <ActionIcon
-            variant={showFilters ? 'filled' : 'subtle'}
-            onClick={() => setShowFilters(!showFilters)}
-            title="Filtros"
-          >
-            <IconFilter size={20} />
-          </ActionIcon>
-        </Group>
-      }
+    <Paper
+      p="md"
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
-      <Paper ref={ref} withBorder style={{ height: safeHeight }}>
-        {/* Área de Filtros */}
-        <Collapse in={showFilters}>
-          <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
-            <Group grow mb="sm">
-              <TextInput
-                placeholder="Buscar por nome..."
-                value={filters.name}
-                onChange={(e) => setFilters({ ...filters, name: e.target.value })}
-                leftSection={<IconSearch size={16} />}
-              />
-              <Select
-                placeholder="Status"
-                value={filters.status}
-                onChange={(value) => setFilters({ ...filters, status: value || '' })}
-                data={[
-                  { value: '', label: 'Todos' },
-                  { value: 'true', label: 'Ativos' },
-                  { value: 'false', label: 'Inativos' }
-                ]}
-                clearable
-              />
-            </Group>
-            <Group justify="flex-end">
-              <Button variant="subtle" onClick={handleClearFilters}>
-                Limpar Filtros
-              </Button>
-              <Button onClick={() => refetch()}>
-                Aplicar Filtros
-              </Button>
-            </Group>
-          </Box>
-        </Collapse>
-
-        {/* Grid de Dados */}
-        {/* CORRETO: ArchbaseDataGrid com children pattern */}
-        <ArchbaseDataGrid
+      <Paper
+        ref={containerRef}
+        withBorder
+        style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
+      >
+        <ArchbaseGridTemplate<UserDto, string>
+          ref={templateRef}
+          title=""
+          height={containerHeight}
+          width={'100%'}
           dataSource={dataSource}
-          height={gridHeight}
-          highlightOnHover
-          striped
-          onCellDoubleClick={(params) => onEdit(params.id)}
-        >
-          <Columns>
-            {/* CORRETO: usar header (não caption), size (não width), dataType obrigatório */}
-            <ArchbaseDataGridColumn
-              dataField="name"
-              header="Nome"
-              size={200}
-              dataType="text"
-            />
-            <ArchbaseDataGridColumn
-              dataField="email"
-              header="E-mail"
-              size={250}
-              dataType="text"
-            />
-            <ArchbaseDataGridColumn
-              dataField="phone"
-              header="Telefone"
-              size={150}
-              dataType="text"
-            />
-            <ArchbaseDataGridColumn
-              dataField="active"
-              header="Status"
-              size={100}
-              dataType="boolean"
-              align="center"
-              render={(value: boolean) => (
-                <Badge color={value ? 'green' : 'red'} size="sm">
-                  {value ? 'Ativo' : 'Inativo'}
-                </Badge>
-              )}
-            />
-            <ArchbaseDataGridColumn
-              dataField="createdAt"
-              header="Criado em"
-              size={150}
-              dataType="date"
-            />
-            <ArchbaseDataGridColumn
-              dataField="id"
-              header="Ações"
-              size={120}
-              dataType="text"
-              align="center"
-              enableSorting={false}
-              enableColumnFilter={false}
-              render={(id: string) => {
-                const record = dataSource.locateByFilter(r => r.id === id)
-                return (
-                  <Group gap={4} justify="center">
-                    <ActionIcon
-                      variant="subtle"
-                      color="blue"
-                      onClick={() => onView(id)}
-                      title="Visualizar"
-                    >
-                      <IconEye size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="yellow"
-                      onClick={() => onEdit(id)}
-                      title="Editar"
-                    >
-                      <IconEdit size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => record && handleDelete(record)}
-                      title="Excluir"
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                )
-              }}
-            />
-          </Columns>
-        </ArchbaseDataGrid>
+          pageSize={25}
+          isLoading={isLoading}
+          error={error || lastError}
+          isError={Boolean(error || lastError)}
+          clearError={handleClearError}
+          withBorder={false}
+          withToolbarBorder={true}
+          withPaginationBorder={true}
+          userActions={{
+            visible: true,
+            allowRemove: canDelete,
+            onAddExecute: canCreate ? handleAdd : undefined,
+            onEditExecute: canEdit ? () => handleEdit(dataSource.getCurrentRecord()!) : undefined,
+            onRemoveExecute: canDelete ? () => handleRemove(dataSource.getCurrentRecord()!) : undefined,
+            onViewExecute: canView ? () => handleView(dataSource.getCurrentRecord()!) : undefined,
+          }}
+          userRowActions={userRowActions}
+          getRowId={getRowId}
+          enableRowSelection={true}
+          enableRowActions={true}
+          columns={columns}
+          filterType={'normal'}
+          positionActionsColumn={'first'}
+        />
       </Paper>
-    </ArchbasePanelTemplate>
+    </Paper>
   )
 }
 

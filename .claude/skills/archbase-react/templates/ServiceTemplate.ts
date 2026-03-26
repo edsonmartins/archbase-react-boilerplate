@@ -70,16 +70,14 @@ export class EntityRemoteService extends ArchbaseRemoteApiService<EntityDto, str
    * Verificar se é registro novo
    */
   public isNewRecord(entity: EntityDto): boolean {
-    return !entity.id || entity.id === '' || entity.isNewRecord === true
+    return entity.isNew
   }
 
   /**
    * Headers padrão para requisições
    */
   protected configureHeaders(): Record<string, string> {
-    return {
-      'Content-Type': 'application/json'
-    }
+    return {}
   }
 
   /**
@@ -154,11 +152,11 @@ export class EntityRemoteServiceAdvanced extends ArchbaseRemoteApiService<Entity
   }
 
   public isNewRecord(entity: EntityDto): boolean {
-    return !entity.id || entity.id === ''
+    return entity.isNew
   }
 
   protected configureHeaders(): Record<string, string> {
-    return { 'Content-Type': 'application/json' }
+    return {}
   }
 
   protected transform(entity: EntityDto): EntityDto {

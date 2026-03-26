@@ -70,7 +70,7 @@ export function UserForm() {
     const loadRecord = async () => {
       if (isAddAction) {
         dataSource.setRecords([])
-        const newRecord = UserDto.newInstance()  // ✅ Usa __isNew: true e UUID
+        const newRecord = UserDto.newInstance()  // ✅ Usa isNew: true
         dataSource.insert(newRecord)
       } else if ((isEditAction || isViewAction) && id) {
         try {

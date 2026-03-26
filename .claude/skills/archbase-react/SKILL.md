@@ -112,7 +112,8 @@ export class MinhaService extends ArchbaseRemoteApiService<MinhaDto, string> {
   protected getEndpoint(): string { return '/api/v1/minha-entidade' }
   protected configureHeaders(): Record<string, string> { return {} }
   public getId(entity: MinhaDto): string { return entity.id || '' }
-  isNewRecord(entity: MinhaDto): boolean { return !entity.id || entity.id === '' }
+  protected transform(data: any): MinhaDto { return new MinhaDto(data) }
+  isNewRecord(entity: MinhaDto): boolean { return entity.isNew }
 
   // Métodos customizados
   async ativar(id: string): Promise<MinhaDto> {
@@ -143,8 +144,8 @@ export class MinhaService extends ArchbaseRemoteApiService<MinhaDto, string> {
 | `useElementSize` em FormTemplate | Usar `ScrollArea` com `height: '100%'` |
 | Store com ID dinâmico | Store com nome fixo `'formStore'` |
 | `const ds = dataSource as any` | Usar V2: dataSource direto sem cast |
-| DTO sem `__isNew` | Adicionar `__isNew: true` no `newInstance()` |
-| `isNewRecord` verificando `!entity.id` | Usar `entity.__isNew === true` |
+| DTO sem `isNew` | Adicionar `isNew: true` no `newInstance()` |
+| `isNewRecord` verificando `!entity.id` | Usar `entity.isNew` |
 | `import { ArchbaseRemoteApiClient }` | `import type { ArchbaseRemoteApiClient }` |
 
 ---

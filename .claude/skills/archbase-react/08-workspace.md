@@ -423,7 +423,7 @@ export function ModalComplexo({ entity, opened, onClose, onSave }: ModalComplexo
   }, [currentRecord, onSave])
 
   const handleAdicionarItem = useCallback((novoItem: Partial<ItemDto>) => {
-    appendToFieldArray('itens', new ItemDto({ id: uuidv4(), __isNew: true, ...novoItem }))
+    appendToFieldArray('itens', new ItemDto({ isNew: true, ...novoItem }))
     setHasChanges(true)
   }, [appendToFieldArray])
 

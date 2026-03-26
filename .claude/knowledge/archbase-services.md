@@ -41,14 +41,12 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
 
   // OBRIGATÓRIO: Verificar se é registro novo
   public isNewRecord(entity: UserDto): boolean {
-    return !entity.id || entity.id === ''
+    return entity.isNew
   }
 
-  // OBRIGATÓRIO: Headers padrão
+  // OBRIGATÓRIO: Headers padrão (retornar vazio)
   protected configureHeaders(): Record<string, string> {
-    return {
-      'Content-Type': 'application/json'
-    }
+    return {}
   }
 }
 ```
@@ -347,14 +345,12 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
 
   // OBRIGATÓRIO
   public isNewRecord(entity: UserDto): boolean {
-    return !entity.id || entity.id === ''
+    return entity.isNew
   }
 
-  // OBRIGATÓRIO
+  // OBRIGATÓRIO (retornar vazio)
   protected configureHeaders(): Record<string, string> {
-    return {
-      'Content-Type': 'application/json'
-    }
+    return {}
   }
 
   // OPCIONAL: Transformar entidade após receber da API
@@ -496,7 +492,7 @@ public getId(entity: UserDto): string {
 }
 
 public isNewRecord(entity: UserDto): boolean {
-  return !entity.id
+  return entity.isNew
 }
 ```
 

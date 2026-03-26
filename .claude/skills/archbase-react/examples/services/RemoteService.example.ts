@@ -67,7 +67,7 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
   // OBRIGATÓRIO: método abstrato
   // ------------------------------------------
   public isNewRecord(entity: UserDto): boolean {
-    return !entity.id || entity.id === ''
+    return entity.isNew
   }
 
   // ------------------------------------------
@@ -75,9 +75,7 @@ export class UserService extends ArchbaseRemoteApiService<UserDto, string> {
   // OBRIGATÓRIO: método abstrato
   // ------------------------------------------
   protected configureHeaders(): Record<string, string> {
-    return {
-      'Content-Type': 'application/json'
-    }
+    return {}
   }
 
   // ------------------------------------------

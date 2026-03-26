@@ -30,9 +30,9 @@ Resumos, checklists e tabelas de referência rápida.
 | `action === 'ADD'` (direta) | `action.toUpperCase() === 'ADD'` (case-insensitive) |
 | `forceUpdate()` no onLoadComplete | **NÃO usar** - causa loop |
 | DTO sem UUID no newInstance() | Sempre gerar `id: uuidv4()` |
-| DTO sem `__isNew` | Adicionar `__isNew: true` |
-| `isNewRecord` verificando id vazio | Usar `entity.__isNew === true` |
-| `useElementSize` no form | **NÃO usar** - usar `ScrollArea` |
+| DTO sem `isNew` | Adicionar `isNew: true` |
+| `isNewRecord` verificando id vazio | Usar `entity.isNew` |
+| `useElementSize` no form | **NÃO usar** - usar flex layout ou `ScrollArea` |
 | Store com ID dinâmico | Usar nome fixo `'formStore'` |
 | `useArchbaseRemoteDataSource` + cast | **Usar V2**: `useArchbaseRemoteDataSourceV2` |
 | `const ds = dataSource as any` | V2: passar `dataSource` direto |
@@ -41,27 +41,30 @@ Resumos, checklists e tabelas de referência rápida.
 
 ## DTOs - Padrões
 
-### Campo `__isNew` e UUID (CRÍTICO!)
+### Campo `isNew` (CRÍTICO!)
 
 ```typescript
-import { v4 as uuidv4 } from 'uuid'
+import { IsNotEmpty, IsString } from 'class-validator'
 
 export class EntityDto {
-  id?: string
-  __isNew?: boolean  // OBRIGATÓRIO
+  @IsNotEmpty()
+  id: string
+
+  @IsString()
   nome: string
 
+  isNew: boolean  // OBRIGATÓRIO: controle de novo registro
+
   constructor(data: any = {}) {
-    this.id = data.id
-    this.__isNew = data.__isNew ?? false
+    this.id = data.id || ''
     this.nome = data.nome || ''
+    this.isNew = data.isNew || false
   }
 
   static newInstance = () => {
     return new EntityDto({
-      id: uuidv4(),      // Gerar UUID
-      __isNew: true,     // Marcar como novo
-      nome: ''
+      nome: '',
+      isNew: true,     // Marcar como novo
     })
   }
 }
@@ -91,36 +94,41 @@ onLoadComplete: (dataSource) => {
 ## Checklist de Desenvolvimento
 
 ### Forms (useArchbaseRemoteDataSourceV2)
-- [ ] NÃO usar `useElementSize`
 - [ ] Usar `useArchbaseRemoteDataSourceV2` sem cast
 - [ ] Usar `useArchbaseStore('nomeFixo')`
-- [ ] Usar `useRef(false)` + `useEffect` para carregar uma vez
+- [ ] Usar `loadedIdRef = useRef<string | null>(null)` para controle de carregamento
 - [ ] Comparar action com `toUpperCase()`
 - [ ] `dataSource.setRecords([dto])` para registro existente
 - [ ] `dataSource.insert(Dto.newInstance())` para novo
 - [ ] `dataSource.edit()` para entrar em edição
+- [ ] Envolver com `<ValidationErrorsProvider>`
 - [ ] Sem cast nos componentes
 
-### Views/Grids
-- [ ] Usar `ArchbaseDataGrid`
-- [ ] Usar `<Columns><ArchbaseDataGridColumn /></Columns>`
-- [ ] Props: `header`, `size`, `dataType`
-- [ ] Evento: `onCellDoubleClick`
+### Views/Grids (ArchbaseGridTemplate)
+- [ ] Usar `ArchbaseGridTemplate` como template principal
+- [ ] Usar `useElementSize()` do Mantine para altura do container
+- [ ] Usar `<Columns><ArchbaseDataGridColumn /></Columns>` no `columns` prop
+- [ ] Props das colunas: `header`, `size`, `dataType`
+- [ ] `userActions` com `canCreate`, `canEdit`, `canDelete`, `canView`
+- [ ] `userRowActions` para ações por linha
 
 ### Services
 - [ ] `type` import para `ArchbaseRemoteApiClient`
 - [ ] Implementar `getEndpoint()` - obrigatório
-- [ ] Implementar `configureHeaders()` - obrigatório
+- [ ] Implementar `configureHeaders()` retornando `{}` - obrigatório
 - [ ] Implementar `getId(entity)` - obrigatório
-- [ ] Implementar `isNewRecord(entity)` usando `__isNew` - obrigatório
+- [ ] Implementar `isNewRecord(entity)` usando `entity.isNew` - obrigatório
+- [ ] Implementar `transform(data)` para converter em DTO - opcional
 - [ ] Usar `findOne()`
 - [ ] Endpoint no plural
 
 ### DTOs
-- [ ] Importar `uuid`
-- [ ] Adicionar `__isNew?: boolean`
-- [ ] No construtor: `this.__isNew = data.__isNew ?? false`
-- [ ] No `newInstance()`: `id: uuidv4()` e `__isNew: true`
+- [ ] Usar **classe** (não interface) com constructor
+- [ ] Usar decorators do class-validator (`@IsNotEmpty`, `@IsString`, etc)
+- [ ] Adicionar `isNew: boolean`
+- [ ] No construtor: `this.isNew = data.isNew || false`
+- [ ] No `newInstance()`: `isNew: true`
+- [ ] Enum + Values array para campos de seleção
 
 ---
 

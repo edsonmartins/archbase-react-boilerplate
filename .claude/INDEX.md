@@ -52,16 +52,18 @@ Para usar quando precisa entender completamente um conceito. Exemplos completos 
 
 Exemplos prontos para copiar e adaptar.
 
-**Localização:** `.claude/skills/archbase-react/examples/`
+**Localização:** `.claude/examples/` e `.claude/skills/archbase-react/examples/`
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `forms/BasicForm.example.tsx` | Formulário básico com DataSource V2 |
+| `forms/BasicForm.example.tsx` | Formulário V2 com Tabs, ValidationErrorsProvider, loadedIdRef |
 | `forms/TabsForm.example.tsx` | Formulário com abas |
-| `views/ListView.example.tsx` | Lista com filtros e ações |
-| `views/CRUDView.example.tsx` | View CRUD completa |
+| `views/ListView.example.tsx` | Lista com ArchbaseGridTemplate + V2 + useElementSize |
+| `views/CRUDView.example.tsx` | View CRUD completa (List + Form separados) |
+| `views/KanbanView.example.tsx` | **Kanban com react-kanban-kit + toggle Lista/Kanban** |
+| `views/GridWithDetailModal.example.tsx` | **Grid com Modal de Detalhes + Operações em Lote** |
 | `hooks/useDataSource.example.tsx` | Hook customizado |
-| `services/RemoteService.example.ts` | Service com métodos customizados |
+| `services/RemoteService.example.ts` | Service com DTO classe + isNew + class-validator |
 
 ---
 
@@ -114,17 +116,20 @@ Templates para criar novos componentes rapidamente.
 | Errado | Correto |
 |--------|---------|
 | `ArchbaseDataTable` | `ArchbaseDataGrid` |
-| `ArchbaseListTemplate` | `ArchbasePanelTemplate` |
+| `ArchbaseListTemplate` | `ArchbaseGridTemplate` (list views CRUD) |
 | `caption` / `width` | `header` / `size` |
 | `dataSource.setData()` | `dataSource.open()` ou V2: `setRecords()` |
 | `service.findById()` | `service.findOne()` |
+| `isNewRecord` com `!entity.id` | `entity.isNew` |
+| DTO como interface | DTO como **classe** com `isNew: boolean` |
 | `action === 'ADD'` | `action.toUpperCase() === 'ADD'` |
-| `useElementSize` em forms | `ScrollArea` com `height: '100%'` |
+| `useElementSize` em forms | Flex layout com Tabs |
 | Store dinâmico | Store com nome fixo |
+| `configureHeaders` com Content-Type | `configureHeaders` retornando `{}` |
 
 Para lista completa, veja `skills/archbase-react/09-reference.md`.
 
 ---
 
-**Versão:** 3.0.7+
-**Atualizado:** 2026-02-09
+**Versão:** 3.0.21+
+**Atualizado:** 2026-03-25

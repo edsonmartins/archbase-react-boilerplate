@@ -353,7 +353,7 @@ Para detalhes complexos, use Tabs dentro do modal:
 
 ## 9. Container Height com useElementSize
 
-Para altura dinâmica de containers:
+Para altura dinâmica de containers em **list views**:
 
 ```typescript
 import { useElementSize } from '@mantine/hooks'
@@ -362,30 +362,28 @@ function ProductListViewContent() {
   const { ref: containerRef, height: containerHeight } = useElementSize()
 
   return (
-    <Paper ref={containerRef} style={{ height: '100%', overflow: 'hidden' }}>
-      <ArchbaseGridTemplate
-        height={containerHeight - 60} // Descontar header/padding
-        // ...
-      />
+    <Paper p="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper ref={containerRef} withBorder style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <ArchbaseGridTemplate
+          height={containerHeight}
+          width={'100%'}
+          // ...
+        />
+      </Paper>
     </Paper>
   )
 }
 ```
 
-**Alternativa com useArchbaseElementSizeArea:**
+**IMPORTANTE**: Em **forms**, NÃO usar `useElementSize`. Usar flex layout com Tabs:
 
 ```typescript
-import { useArchbaseElementSizeArea } from '@archbase/core'
-
-function ProductListViewContent() {
-  const [containerRef, { height: containerHeight }] = useArchbaseElementSizeArea()
-
-  return (
-    <Paper ref={containerRef} style={{ height: '100%' }}>
-      <ArchbaseGridTemplate height={containerHeight} />
-    </Paper>
-  )
-}
+<Tabs style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+  <Tabs.List style={{ flexShrink: 0 }}>...</Tabs.List>
+  <Tabs.Panel style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+    ...
+  </Tabs.Panel>
+</Tabs>
 ```
 
 ---

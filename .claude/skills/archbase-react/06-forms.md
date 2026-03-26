@@ -72,18 +72,18 @@ export function UserForm() {
     }
   })
 
-  // Flag para garantir que loadRecord só execute uma vez
-  const hasLoadedRef = useRef(false)
+  // Flag para garantir que loadRecord só execute uma vez por ID
+  const loadedIdRef = useRef<string | null>(null)
 
-  // Carrega o registro apenas uma vez
+  // Carrega o registro (protegido contra re-execução)
   useEffect(() => {
-    if (hasLoadedRef.current) return
-    hasLoadedRef.current = true
+    if (loadedIdRef.current === (id || 'new')) return
+    loadedIdRef.current = id || 'new'
 
     const loadRecord = async () => {
       if (isAddAction) {
         dataSource.setRecords([])
-        const newRecord = UserDto.newInstance()  // Usa __isNew: true e UUID
+        const newRecord = UserDto.newInstance()  // Usa isNew: true
         dataSource.insert(newRecord)
       } else if ((isEditAction || isViewAction) && id) {
         try {
@@ -100,7 +100,7 @@ export function UserForm() {
     }
 
     loadRecord()
-  }, [])
+  }, [id])
 
   const handleAfterSave = () => {
     templateStore.clearAllValues()
@@ -129,32 +129,41 @@ export function UserForm() {
 
   // dataSource pode ser passado diretamente - SEM CAST!
   return (
-    <ArchbaseFormTemplate
-      dataSource={dataSource}
-      onCancel={handleCancel}
-      onAfterSave={handleAfterSave}
-      withBorder={false}
-    >
-      <LoadingOverlay visible={isLoading} />
-      <Grid>
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Stack gap="md">
-            <ArchbaseEdit<UserDto, string>
-              label={String(t('my-app:Nome'))}
-              dataSource={dataSource}
-              dataField="nome"
-              placeholder={String(t('my-app:Digite o nome'))}
-              required
-            />
-            <ArchbaseSwitch<UserDto, boolean>
-              label={String(t('my-app:Ativo'))}
-              dataSource={dataSource}
-              dataField="ativo"
-            />
-          </Stack>
-        </Grid.Col>
-      </Grid>
-    </ArchbaseFormTemplate>
+    <ValidationErrorsProvider>
+      <ArchbaseFormTemplate
+        title={isAddAction ? String(t('my-app:Novo Usuário')) : String(t('my-app:Editar Usuário'))}
+        dataSource={dataSource}
+        onCancel={handleCancel}
+        onAfterSave={handleAfterSave}
+        withBorder={false}
+      >
+        <LoadingOverlay visible={isLoading} />
+        <Tabs variant="pills" defaultValue="dados" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Tabs.List style={{ flexShrink: 0 }}>
+            <Tabs.Tab value="dados" leftSection={<IconFileText size={16} />}>
+              {String(t('my-app:Dados Gerais'))}
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="dados" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <Stack gap="md" p="md">
+              <ArchbaseEdit<UserDto, string>
+                label={String(t('my-app:Nome'))}
+                dataSource={dataSource}
+                dataField="nome"
+                placeholder={String(t('my-app:Digite o nome'))}
+                required
+              />
+              <ArchbaseSwitch<UserDto, boolean>
+                label={String(t('my-app:Ativo'))}
+                dataSource={dataSource}
+                dataField="ativo"
+              />
+            </Stack>
+          </Tabs.Panel>
+        </Tabs>
+      </ArchbaseFormTemplate>
+    </ValidationErrorsProvider>
   )
 }
 ```

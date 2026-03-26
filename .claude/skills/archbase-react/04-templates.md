@@ -143,14 +143,108 @@ export function WorkspaceView() {
 
 ---
 
+## ArchbaseGridTemplate (PRINCIPAL para List Views)
+
+Template principal para views de listagem com CRUD completo, paginação e filtros integrados.
+
+**IMPORTANTE**: Este é o template padrão para list views, não `ArchbasePanelTemplate`.
+
+```typescript
+import { ArchbaseGridTemplate, ArchbaseGridTemplateRef } from '@archbase/template'
+import { useElementSize } from '@mantine/hooks'
+
+function ProductListViewContent() {
+  const templateRef = useRef<ArchbaseGridTemplateRef | null>(null)
+  const { ref: containerRef, height: containerHeight } = useElementSize()
+
+  const { dataSource, isLoading, error, refreshData, remove } =
+    useArchbaseRemoteDataSourceV2<ProductDto>({
+      name: 'dsProducts',
+      label: 'Produtos',
+      service: serviceApi,
+      pageSize: 25,
+      defaultSortFields: ['nome'],
+    })
+
+  const columns: ReactNode = useMemo(() => (
+    <Columns>
+      <ArchbaseDataGridColumn<ProductDto>
+        dataField="nome" dataType="text" header="Nome" size={300}
+      />
+      <ArchbaseDataGridColumn<ProductDto>
+        dataField="status" dataType="text" header="Status" size={120}
+        render={(data) => <Badge>{data.getValue()}</Badge>}
+      />
+    </Columns>
+  ), [t])
+
+  return (
+    <Paper p="md" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper ref={containerRef} withBorder style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <ArchbaseGridTemplate<ProductDto, string>
+          ref={templateRef}
+          title=""
+          height={containerHeight}
+          width={'100%'}
+          dataSource={dataSource}
+          pageSize={25}
+          isLoading={isLoading}
+          error={error}
+          isError={Boolean(error)}
+          clearError={handleClearError}
+          withBorder={false}
+          userActions={{
+            visible: true,
+            allowRemove: canDelete,
+            onAddExecute: canCreate ? handleAdd : undefined,
+            onEditExecute: canEdit ? handleEdit : undefined,
+            onRemoveExecute: canDelete ? handleRemove : undefined,
+            onViewExecute: canView ? handleView : undefined,
+          }}
+          userRowActions={userRowActions}
+          getRowId={getRowId}
+          enableRowSelection={true}
+          enableRowActions={true}
+          columns={columns}
+          filterType={'normal'}
+          positionActionsColumn={'first'}
+        />
+      </Paper>
+    </Paper>
+  )
+}
+```
+
+### Props do ArchbaseGridTemplate
+
+| Prop | Tipo | Descrição |
+|------|------|-----------|
+| `ref` | Ref | Ref para controle do template |
+| `title` | string | Título (geralmente vazio) |
+| `height` | number | Altura do container |
+| `width` | string/number | Largura |
+| `dataSource` | DataSource | Fonte de dados V2 |
+| `pageSize` | number | Itens por página |
+| `isLoading` | boolean | Estado de carregamento |
+| `error` | Error | Erro atual |
+| `userActions` | object | Ações CRUD do toolbar |
+| `userRowActions` | object | Ações por linha |
+| `columns` | ReactNode | Colunas do grid |
+| `filterType` | string | Tipo de filtro ('normal') |
+| `enableRowSelection` | boolean | Habilitar seleção |
+| `enableRowActions` | boolean | Habilitar ações na linha |
+| `positionActionsColumn` | string | Posição da coluna de ações |
+
+---
+
 ## Comparação de Templates
 
 | Template | Uso Recomendado | Características |
 |----------|-----------------|-----------------|
+| `ArchbaseGridTemplate` | **List views CRUD** | Grid com paginação, filtros, ações CRUD |
 | `ArchbaseFormTemplate` | Formulários de edição | Binding automático, ações de salvar |
-| `ArchbasePanelTemplate` | Listas CRUD simples | Grid integrado, paginação |
 | `ArchbaseSpaceTemplate` | Views complexas | Header customizado, conteúdo flexível |
-| `ArchbaseGridTemplate` | Grid com paginação | Lista completa com paginação |
+| `ArchbasePanelTemplate` | Listas simples sem paginação | Grid básico |
 | `ArchbaseModalTemplate` | Modais/Dialogs | Modal com actions |
 
 ---
