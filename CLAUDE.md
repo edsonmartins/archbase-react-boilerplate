@@ -16,7 +16,7 @@ Este é um boilerplate para aplicações React administrativas usando a bibliote
 | TypeScript | 5.3+ | Type Safety |
 | Vite | 6.x | Build Tool |
 | Mantine | 8.3.6 | UI Components |
-| Archbase React | 3.0.7+ | Framework Admin |
+| Archbase React | 3.0.23+ | Framework Admin |
 | Inversify | 6.2 | IoC/DI Container |
 | React Query | 5.x | Data Fetching |
 | i18next | 23.x | Internacionalização |
@@ -53,6 +53,8 @@ src/
 ├── auth/             # Autenticação (AppAuthenticator, AppUser)
 ├── components/       # Componentes reutilizáveis
 ├── contexts/         # React Contexts
+├── hooks/            # Custom React hooks (useSecureActions)
+├── security/         # Ações de segurança e permissões
 ├── domain/           # DTOs e modelos de domínio
 ├── ioc/              # Container IoC (Inversify)
 │   ├── ContainerIOC.ts   # Configuração do container
@@ -235,6 +237,60 @@ Adicione rotas em `navigation/navigationData.tsx`:
 }
 ```
 
+### 8. ArchbaseSecurityProvider
+
+Envolver `ArchbaseAppProvider` com `ArchbaseSecurityProvider` no App.tsx:
+
+```typescript
+<ArchbaseGlobalProvider ...>
+  <ArchbaseSecurityProvider user={securityUser}>
+    <ArchbaseAppProvider ...>
+      <Main />
+    </ArchbaseAppProvider>
+  </ArchbaseSecurityProvider>
+</ArchbaseGlobalProvider>
+```
+
+### 9. Sidebar Variant
+
+Suporte a 3 variantes de sidebar: `standard`, `rail`, `minimal`:
+
+```typescript
+const [sidebarVariant, setSidebarVariant] = useLocalStorage<'standard' | 'rail' | 'minimal'>({
+  key: 'app-sidebar-variant',
+  defaultValue: 'rail',
+})
+
+<ArchbaseAdminMainLayout
+  sidebarVariant={sidebarVariant}
+  showCollapsedButton={sidebarVariant !== 'minimal'}
+/>
+```
+
+### 10. Meu Perfil Modal
+
+Use `ArchbaseMyProfileModal` do `@archbase/admin`:
+
+```typescript
+import { ArchbaseMyProfileModal } from '@archbase/admin'
+
+<ArchbaseMyProfileModal
+  opened={showMyProfile}
+  handleClose={handleCloseMyProfileModal}
+  userId={user.id}
+  updateUser={handleUpdateUser}
+  options={{ showNickname: false, avatarMaxSizeKB: 100 }}
+/>
+```
+
+### 11. Password Reset
+
+Use `useArchbaseResetPassword` do `@archbase/security`:
+
+```typescript
+const { sendResetPasswordEmail, resetPassword } = useArchbaseResetPassword()
+```
+
 ## Documentação Adicional
 
 Para documentação detalhada sobre componentes Archbase, consulte:
@@ -242,6 +298,8 @@ Para documentação detalhada sobre componentes Archbase, consulte:
 - `.claude/SKILL.md` - Referência completa de componentes
 - `.claude/knowledge/` - Documentação modular por tema
 - `.claude/examples/` - Exemplos de código funcionais
+- `src/hooks/` - Custom hooks (useSecureActions, useBasicSecurity)
+- `src/security/` - Definições de ações de segurança
 
 ## Convenções de Código
 

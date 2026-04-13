@@ -20,6 +20,9 @@ Este documento contém a referência completa dos componentes e padrões do Arch
 | **08-workspace.md** | Workspace, Kanban, Lookup Modals, Status Badges, Workflow | ~510 |
 | **09-reference.md** | Checklists, DTOs, V1/V2, Performance | ~280 |
 | **10-advanced-patterns.md** | Gráficos ECharts, KPI Cards, Wizards, WebSocket, Dashboard | ~500 |
+| **11-view-patterns.md** | Padrões de Views CRUD | ~300 |
+| **12-dashboard-patterns.md** | Padrões de Dashboard | ~350 |
+| **13-atendimento-patterns.md** | Central de Atendimentos, Chat, WebSocket, Mock Data | ~400 |
 
 ---
 
@@ -87,8 +90,8 @@ export enum StatusItem {
 }
 
 export const StatusItemValues = [
-  { value: StatusItem.ATIVO, label: 'Ativo' },
-  { value: StatusItem.INATIVO, label: 'Inativo' }
+  { value: StatusItem.ATIVO, label: 'Ativo', color: 'green' },
+  { value: StatusItem.INATIVO, label: 'Inativo', color: 'red' }
 ]
 
 // Usar no Select
@@ -113,7 +116,7 @@ export class MinhaService extends ArchbaseRemoteApiService<MinhaDto, string> {
   protected configureHeaders(): Record<string, string> { return {} }
   public getId(entity: MinhaDto): string { return entity.id || '' }
   protected transform(data: any): MinhaDto { return new MinhaDto(data) }
-  isNewRecord(entity: MinhaDto): boolean { return entity.isNew }
+  isNewRecord(entity: MinhaDto): boolean { return entity.isNew === true }
 
   // Métodos customizados
   async ativar(id: string): Promise<MinhaDto> {
@@ -150,6 +153,147 @@ export class MinhaService extends ArchbaseRemoteApiService<MinhaDto, string> {
 
 ---
 
+## Padrões Modernos (2026)
+
+### 1. Security Provider Pattern
+```typescript
+export function MinhaView() {
+  return (
+    <ArchbaseViewSecurityProvider
+      resourceName="MINHA_ENTIDADE"
+      resourceDescription="Gerenciamento de Entidade"
+    >
+      <MinhaViewContent />
+    </ArchbaseViewSecurityProvider>
+  )
+}
+
+function MinhaViewContent() {
+  const { canCreate, canEdit, canDelete, canView } = useSecureActions(
+    'MINHA_ENTIDADE',
+    'Gerenciamento de Entidade'
+  )
+  // ...
+}
+```
+
+### 2. Debounced Search (500ms)
+```typescript
+import { useDebouncedCallback } from '@mantine/hooks'
+
+const debouncedSetSearch = useDebouncedCallback((value: string) => {
+  setFilter((prev) => {
+    const newFilter = { ...prev, searchText: value }
+    templateStore.setValue('filter', newFilter)
+    return newFilter
+  })
+}, 500)
+```
+
+### 3. RSQL Filter Builder
+```typescript
+const buildRsqlFilter = useCallback((): string => {
+  const conditions: string[] = []
+
+  if (filter.searchText?.trim()) {
+    conditions.push(`name==*${filter.searchText.trim()}*`)
+  }
+  if (filter.status) {
+    conditions.push(`status==${filter.status}`)
+  }
+  if (filter.dateRange?.start && filter.dateRange?.end) {
+    conditions.push(`createdAt=bt=(${start},${end})`)
+  }
+
+  return conditions.length > 0 ? conditions.join(';') : ''
+}, [filter])
+```
+
+### 4. SectionHeader Component
+```typescript
+const SectionHeader = ({ icon, title, color = 'blue' }) => (
+  <Group gap="xs" mb="md">
+    <ThemeIcon size="sm" variant="light" color={color} radius="xl">
+      {icon}
+    </ThemeIcon>
+    <Text fw={600} size="sm" c="dimmed">
+      {title}
+    </Text>
+  </Group>
+)
+```
+
+### 5. LookupField Component
+```typescript
+const LookupField = ({ label, value, onSearch, onClear, disabled }) => (
+  <ArchbaseEdit
+    label={label}
+    value={value}
+    readOnly
+    disabled={disabled}
+    rightSection={
+      <Group gap={4}>
+        {onClear && value && (
+          <ActionIcon size="sm" onClick={onClear}>x</ActionIcon>
+        )}
+        <ActionIcon size="sm" onClick={onSearch}>
+          <IconSearch size={14} />
+        </ActionIcon>
+      </Group>
+    }
+  />
+)
+```
+
+### 6. Mock Data Pattern
+```typescript
+// mockData.ts
+export const USAR_MOCK_DATA = true
+
+// service.ts
+async listar(): Promise<Dto[]> {
+  if (USAR_MOCK_DATA) {
+    await this.simulateDelay()
+    return [...MOCK_DATA]
+  }
+  return this.client.get(this.endpoint)
+}
+```
+
+### 7. Sidebar Collapse Pattern
+```typescript
+const adminLayoutContext = useContext(ArchbaseAdminLayoutContext)
+const previousCollapsedState = useRef<boolean | undefined>()
+
+useEffect(() => {
+  previousCollapsedState.current = adminLayoutContext.collapsed
+  if (!adminLayoutContext.collapsed) {
+    adminLayoutContext.setCollapsed?.(true)
+  }
+  return () => {
+    if (previousCollapsedState.current === false) {
+      adminLayoutContext.setCollapsed?.(false)
+    }
+  }
+}, [])
+```
+
+### 8. HoverCard para Textos Longos
+```typescript
+<HoverCard width={600} position="bottom" openDelay={1500}>
+  <HoverCard.Target>
+    <Text truncate>{longText}</Text>
+  </HoverCard.Target>
+  <HoverCard.Dropdown>
+    <ScrollArea style={{ maxHeight: 300 }}>
+      <Text size="sm">{longText}</Text>
+    </ScrollArea>
+  </HoverCard.Dropdown>
+</HoverCard>
+```
+
+---
+
 ## Padrões de View
 
 | Tipo de View | Template | DataSource |
@@ -160,6 +304,21 @@ export class MinhaService extends ArchbaseRemoteApiService<MinhaDto, string> {
 | Dashboard | `ArchbaseSpaceTemplate` | `useDashboardData` hook |
 | Modal com Form | `ArchbaseModalTemplate` | `useArchbaseDataSourceV2` local |
 | Wizard/Stepper | `Paper` + `Stepper` | Estados locais |
+| Central Atendimentos | CSS Modules customizado | Hooks compostos |
+
+---
+
+## Templates Disponíveis
+
+Os templates atualizados estão em `.claude/skills/archbase-react/templates/`:
+
+| Template | Descrição |
+|----------|-----------|
+| **FormViewTemplate.tsx** | Form com SectionHeader, LookupField, validação, security |
+| **ListViewTemplate.tsx** | Lista com debounce, filtros RSQL, security, HoverCard |
+| **ManagerViewTemplate.tsx** | CRUD completo com variações (Modal, Tabs, Dashboard) |
+| **ServiceTemplate.ts** | Service com mock data pattern |
+| **ModalTemplates.tsx** | Modais de formulário e lookup |
 
 ---
 
@@ -177,6 +336,9 @@ Para ver o conteúdo detalhado de cada área, consulte os arquivos numerados:
 - **Precisa de Workspace/Kanban?** → `08-workspace.md`
 - **Precisa de Checklist de Correções?** → `09-reference.md`
 - **Precisa de Gráficos/Dashboards/WebSocket?** → `10-advanced-patterns.md`
+- **Precisa de Views CRUD completas?** → `11-view-patterns.md`
+- **Precisa de Dashboard?** → `12-dashboard-patterns.md`
+- **Precisa de Central de Atendimentos/Chat?** → `13-atendimento-patterns.md`
 
 ---
 
@@ -186,6 +348,8 @@ Para ver o conteúdo detalhado de cada área, consulte os arquivos numerados:
 src/views/meu-modulo/
 ├── MeuModuloView.tsx           # View principal (lista)
 ├── MeuModuloForm.tsx           # View de formulário
+├── MeuModulo.module.css        # Estilos CSS modules (opcional)
+├── mockData.ts                 # Dados mock para testes (temporário)
 ├── components/
 │   ├── MeuComponenteCard.tsx
 │   ├── MeuComponenteStatus.tsx
@@ -207,5 +371,5 @@ src/domain/meu-modulo/
 
 ---
 
-Versão: 3.0.4+
-Atualizado: 2026-01-27
+Versão: 3.0.23+
+Atualizado: 2026-04-13. Inclui padrões modernos do projeto GestorRQ e boilerplate.

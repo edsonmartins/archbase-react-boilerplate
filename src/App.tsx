@@ -14,10 +14,12 @@ import {
   Tooltip,
   Badge,
   Text,
+  Flex,
   Group,
   useMantineColorScheme,
   MantineThemeOverride,
   Stack,
+  Indicator,
   Avatar,
   LoadingOverlay,
 } from '@mantine/core'
@@ -26,10 +28,14 @@ import { Dispatch, ErrorInfo, Fragment, ReactNode, SetStateAction, useEffect, us
 import {
   IconArrowsMaximize,
   IconBell,
+  IconBrandMessenger,
   IconLogout,
   IconMoonStars,
   IconSun,
   IconUserCircle,
+  IconLayoutSidebar,
+  IconLayoutSidebarRight,
+  IconLayoutList,
 } from '@tabler/icons-react'
 import { Login } from '@views/login/Login'
 import translation_en from '@locales/en/translation.json'
@@ -57,7 +63,12 @@ import {
 import { useArchbaseRemoteServiceApi, useArchbaseStore } from '@archbase/data'
 
 // Do pacote security
-import { ArchbaseUserService, useArchbaseAuthenticationManager } from '@archbase/security'
+import {
+  ArchbaseUserService,
+  useArchbaseAuthenticationManager,
+  useArchbaseResetPassword,
+  ArchbaseSecurityProvider,
+} from '@archbase/security'
 
 import {
   defaultAvatar,
@@ -67,8 +78,11 @@ import {
   ArchbaseAdminTabContainer,
   ArchbaseTabItem,
   CommandPaletteButton,
+  ArchbaseMyProfileModal,
   ArchbaseNavigationProvider,
 } from '@archbase/admin'
+
+declare const __APP_VERSION__: string
 
 type MainProps = {
   onLoginUser: (user: AppUser) => void
@@ -86,13 +100,23 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
   const templateStore = useArchbaseStore()
   const [isCollapsed, setCollapsed] = useState<boolean>(false)
   const [isHidden, setHidden] = useState<boolean>(false)
+  const [sidebarVariant, setSidebarVariant] = useLocalStorage<'standard' | 'rail' | 'minimal'>({
+    key: 'app-sidebar-variant',
+    defaultValue: 'rail',
+  })
+  const isCompact = isCollapsed || sidebarVariant === 'minimal'
   const [isGettingUser, setIsGettingUser] = useState<boolean>(false)
   const [userInfoLoaded, setUserInfoLoaded] = useState<boolean>(false)
+  const [showMyProfile, setShowMyProfile] = useState<boolean>(false)
   const usuarioServiceApi = useArchbaseRemoteServiceApi<ArchbaseUserService>(ARCHBASE_IOC_API_TYPE.User)
   const api = import.meta.env.VITE_API
 
-  const { loginWithContext, logout, username, isAuthenticated, isAuthenticating, isInitializing, error, accessToken } =
+  const { loginWithContext, logout, username, isAuthenticated, isAuthenticating, isInitializing, error, accessToken, clearError } =
     useArchbaseAuthenticationManager({})
+
+  const { sendResetPasswordEmail, resetPassword } = useArchbaseResetPassword()
+
+  const [credentialsExpired, setCredentialsExpired] = useState<{ email: string; message: string } | null>(null)
 
   const getUserInfo = useCallback(async () => {
     if (!accessToken || isGettingUser || userInfoLoaded) {
@@ -108,7 +132,6 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
         return
       }
 
-      // Buscar dados do usuário
       try {
         const usuario = await usuarioServiceApi.getUserByEmail(username)
         onLoginUser(
@@ -125,7 +148,6 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
         )
         setUserInfoLoaded(true)
       } catch (userErr: any) {
-        // Fallback: usar dados básicos do username
         onLoginUser(
           new AppUser({
             id: username,
@@ -157,7 +179,35 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
   }, [isAuthenticated, accessToken])
 
   const handleLogin = async (username: string, password: string, rememberMe: boolean) => {
-    await loginWithContext({ email: username, password, context: 'WEB_ADMIN' }, rememberMe)
+    try {
+      setCredentialsExpired(null)
+      await loginWithContext({ email: username, password, context: 'WEB_ADMIN' }, rememberMe)
+    } catch (err: any) {
+      const errorData = err?.response?.data || err?.data
+      if (errorData?.error === 'CREDENTIALS_EXPIRED' || err?.message?.includes('CREDENTIALS_EXPIRED')) {
+        setCredentialsExpired({
+          email: errorData?.email || username,
+          message: errorData?.message || 'Sua senha expirou. Por favor, redefina sua senha para continuar.',
+        })
+      }
+      throw err
+    }
+  }
+
+  const handleSendResetPasswordEmail = async (email: string) => {
+    await sendResetPasswordEmail(email)
+  }
+
+  const handleResetPassword = async (email: string, token: string, newPassword: string) => {
+    await resetPassword(email, token, newPassword)
+    setCredentialsExpired(null)
+  }
+
+  const handleClearCredentialsExpired = () => {
+    setCredentialsExpired(null)
+    if (clearError) {
+      clearError()
+    }
   }
 
   const handleLogout = () => {
@@ -167,12 +217,39 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
     onLogoutUser()
   }
 
+  const handleOpenMyProfileModal = () => {
+    setShowMyProfile(true)
+  }
+
+  const handleCloseMyProfileModal = () => {
+    setShowMyProfile(false)
+  }
+
+  const handleUpdateUser = (newName: string, newAvatar?: string) => {
+    setUser(prev => {
+      if (!prev) return prev
+      return new AppUser({
+        id: prev.id,
+        displayName: newName ?? prev.displayName,
+        email: prev.email,
+        photo: newAvatar ? atob(newAvatar) : prev.photo,
+        isAdmin: prev.isAdmin,
+      })
+    })
+  }
+
   const headerActions = () => {
     const result: ReactNode[] = []
     if (api && api.includes('localhost')) {
       result.push(
         <Badge key="dev" size="lg" variant="gradient" gradient={{ from: '#2f3eeb', to: '#5b63f0', deg: 90 }}>
           {archbaseI18next.t(`${TRANSLATION_NAME}:DESENVOLVIMENTO`)}
+        </Badge>
+      )
+    } else if (api && api.includes('homolog')) {
+      result.push(
+        <Badge key="homolog" size="lg" variant="gradient" gradient={{ from: '#2f3eeb', to: '#5b63f0', deg: 90 }}>
+          {archbaseI18next.t(`${TRANSLATION_NAME}:HOMOLOGACAO`) || 'HOMOLOGACAO'}
         </Badge>
       )
     }
@@ -197,7 +274,16 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
     console.error(error, info)
   }
 
-  const loginView = <Login onLogin={handleLogin} error={error} />
+  const loginView = (
+    <Login
+      onLogin={handleLogin}
+      onSendResetPasswordEmail={handleSendResetPasswordEmail}
+      onResetPassword={handleResetPassword}
+      error={credentialsExpired ? undefined : error}
+      credentialsExpired={credentialsExpired}
+      onClearCredentialsExpired={handleClearCredentialsExpired}
+    />
+  )
 
   const isLoading = isInitializing || isGettingUser || isAuthenticating
 
@@ -228,6 +314,8 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
             sideBarFooterHeight={isMedium ? 86 : 100}
             sideBarHeaderHeight={isMedium ? 0 : 54}
             enableSecurity={true}
+            sidebarVariant={sidebarVariant}
+            showCollapsedButton={sidebarVariant !== 'minimal'}
             sideBarHeaderContent={
               !isMedium && (
                 <Fragment>
@@ -257,58 +345,141 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
               )
             }
             sideBarFooterContent={
-              <Stack gap={4}>
-                <Menu shadow="md" width={200} position="bottom-end" withArrow arrowPosition="center" offset={-5}>
-                  <Menu.Target>
-                    <Group gap={20} h={50} justify={isCollapsed ? 'center' : 'flex-start'}>
-                      <Avatar
-                        ml={isCollapsed ? 0 : 8}
-                        style={{ cursor: 'pointer' }}
-                        radius="xl"
-                        src={user ? user.photo : defaultAvatar}
-                        alt={user ? user.displayName : ''}
-                      />
-                      {!isCollapsed && <Text c={'white'}>{user.displayName}</Text>}
-                    </Group>
-                  </Menu.Target>
-
-                  <Menu.Dropdown>
-                    <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Usuário`)}</Menu.Label>
-                    <Menu.Item leftSection={<IconUserCircle size={14} />}>
-                      {archbaseI18next.t(`${TRANSLATION_NAME}:Meu Perfil`)}
-                    </Menu.Item>
-                    <Menu.Label>{archbaseI18next.t('archbase:Opções')}</Menu.Label>
-                    <Menu.Item
-                      leftSection={colorScheme === 'dark' ? <IconSun size={14} /> : <IconMoonStars size={14} />}
-                      onClick={toggleColorScheme}
-                    >
-                      {archbaseI18next.t('archbase:toggleColorScheme')}
-                    </Menu.Item>
-                    <Menu.Item leftSection={<IconArrowsMaximize size={14} />} onClick={toggle}>
-                      {archbaseI18next.t(`${TRANSLATION_NAME}:Tela cheia`)}
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Conta`)}</Menu.Label>
-                    <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={handleLogout}>
-                      {archbaseI18next.t(`${TRANSLATION_NAME}:Sair`)}
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-                <Group
-                  justify="space-between"
+              <Stack gap={0}>
+                <Flex
+                  px={isCompact ? 4 : 8}
+                  py={8}
                   align="center"
-                  style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: theme.colors.appPrimary[8] }}
-                  h={52}
+                  justify={isCompact ? 'center' : 'space-between'}
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${theme.colors.appPrimary[7]} 70%, ${theme.colors.appPrimary[9]} 30%)`,
+                    borderTop: `1px solid ${theme.colors.appPrimary[6]}`,
+                    borderBottom: `1px solid ${theme.colors.appPrimary[8]}`,
+                  }}
                 >
-                  {!isCollapsed || isHidden ? (
+                  <Menu shadow="md" width={200} position="top-end" withArrow arrowPosition="center" offset={5}>
+                    <Menu.Target>
+                      <Group gap={12} style={{ cursor: 'pointer' }} justify={isCompact ? 'center' : 'flex-start'}>
+                        <Indicator
+                          inline
+                          label="A"
+                          position="bottom-end"
+                          disabled={!user?.isAdmin}
+                          styles={{
+                            indicator: {
+                              display: 'flex',
+                              border: '1px solid yellow',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              bottom: 5,
+                              right: 5,
+                              width: '16px',
+                              height: '16px',
+                              position: 'absolute',
+                              zIndex: 400,
+                              borderRadius: 50,
+                              backgroundColor: 'green',
+                            },
+                          }}
+                          size={18}
+                          color="green"
+                          offset={7}
+                        >
+                          <Avatar
+                            style={{ cursor: 'pointer' }}
+                            radius="xl"
+                            src={user ? user.photo : defaultAvatar}
+                            alt={user ? user.displayName : ''}
+                          />
+                        </Indicator>
+                        {!isCompact && (
+                          <Stack gap={0}>
+                            <Text c="white" size="sm" fw={500} lineClamp={1}>
+                              {user.displayName}
+                            </Text>
+                            {api && api.includes('localhost') ? (
+                              <Badge size="xs" variant="light" color="blue">
+                                DEV
+                              </Badge>
+                            ) : (
+                              api &&
+                              api.includes('homolog') && (
+                                <Badge size="xs" variant="light" color="blue">
+                                  HOMOLOG
+                                </Badge>
+                              )
+                            )}
+                          </Stack>
+                        )}
+                      </Group>
+                    </Menu.Target>
+
+                    <Menu.Dropdown>
+                      <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Usuário`)}</Menu.Label>
+                      <Menu.Item leftSection={<IconUserCircle size={14} />} onClick={handleOpenMyProfileModal}>
+                        {archbaseI18next.t(`${TRANSLATION_NAME}:Meu Perfil`)}
+                      </Menu.Item>
+                      <Menu.Label>{archbaseI18next.t('archbase:Opções')}</Menu.Label>
+                      <Menu.Item
+                        leftSection={colorScheme === 'dark' ? <IconSun size={14} /> : <IconMoonStars size={14} />}
+                        onClick={toggleColorScheme}
+                      >
+                        {archbaseI18next.t('archbase:toggleColorScheme')}
+                      </Menu.Item>
+                      <Menu.Item leftSection={<IconArrowsMaximize size={14} />} onClick={toggle}>
+                        {archbaseI18next.t(`${TRANSLATION_NAME}:Tela cheia`)}
+                      </Menu.Item>
+                      <Menu.Divider />
+                      <Menu.Label>Layout do Menu</Menu.Label>
+                      <Menu.Item
+                        leftSection={<IconLayoutSidebar size={14} />}
+                        onClick={() => setSidebarVariant('standard')}
+                        bg={sidebarVariant === 'standard' ? theme.colors.appPrimary[1] : undefined}
+                      >
+                        {archbaseI18next.t(`${TRANSLATION_NAME}:Padrão`) || 'Padrão'}
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconLayoutSidebarRight size={14} />}
+                        onClick={() => setSidebarVariant('rail')}
+                        bg={sidebarVariant === 'rail' ? theme.colors.appPrimary[1] : undefined}
+                      >
+                        Rail (Grupos)
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconLayoutList size={14} />}
+                        onClick={() => setSidebarVariant('minimal')}
+                        bg={sidebarVariant === 'minimal' ? theme.colors.appPrimary[1] : undefined}
+                      >
+                        Minimal (Ícones)
+                      </Menu.Item>
+                      <Menu.Divider />
+                      <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Conta`)}</Menu.Label>
+                      <Menu.Item leftSection={<IconBrandMessenger size={14} />}>
+                        {archbaseI18next.t(`${TRANSLATION_NAME}:Suporte`) || 'Suporte'}
+                      </Menu.Item>
+                      <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={handleLogout}>
+                        {archbaseI18next.t(`${TRANSLATION_NAME}:Sair`)}
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                </Flex>
+
+                <Flex
+                  justify={isCompact ? 'center' : 'space-between'}
+                  align="center"
+                  px={isCompact ? 4 : 8}
+                  style={{ backgroundColor: theme.colors.appPrimary[8] }}
+                  h={48}
+                >
+                  {!isCompact || isHidden ? (
                     <Text size="sm" c="white" fw={500}>
                       {APP_NAME}
                     </Text>
                   ) : null}
-                  <Badge size="sm" mb={'8px'} color={theme.colors.appPrimary[5]}>
-                    {isCollapsed ? APP_VERSION : `Versão ${APP_VERSION}`}
+                  <Badge size="sm" color={theme.colors.appPrimary[5]}>
+                    {isCompact ? `${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : APP_VERSION}` : `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : APP_VERSION}`}
                   </Badge>
-                </Group>
+                </Flex>
               </Stack>
             }
             header={
@@ -320,11 +491,14 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                 userMenuItems={
                   <Fragment>
                     <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Usuário`)}</Menu.Label>
-                    <Menu.Item leftSection={<IconUserCircle size={14} />}>
+                    <Menu.Item leftSection={<IconUserCircle size={14} />} onClick={handleOpenMyProfileModal}>
                       {archbaseI18next.t(`${TRANSLATION_NAME}:Meu Perfil`)}
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Label>{archbaseI18next.t(`${TRANSLATION_NAME}:Conta`)}</Menu.Label>
+                    <Menu.Item leftSection={<IconBrandMessenger size={14} />}>
+                      {archbaseI18next.t(`${TRANSLATION_NAME}:Suporte`) || 'Suporte'}
+                    </Menu.Item>
                     <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={handleLogout}>
                       {archbaseI18next.t(`${TRANSLATION_NAME}:Sair`)}
                     </Menu.Item>
@@ -343,6 +517,18 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
               navigationData={navigationData}
             />
           </ArchbaseAdminMainLayout>
+          {user && (
+            <ArchbaseMyProfileModal
+              opened={showMyProfile}
+              handleClose={handleCloseMyProfileModal}
+              userId={user.id}
+              updateUser={handleUpdateUser}
+              options={{
+                showNickname: false,
+                avatarMaxSizeKB: 100,
+              }}
+            />
+          )}
         </Fragment>
       ) : (
         loginView
@@ -379,6 +565,36 @@ function App() {
     setCurrentUser(undefined)
   }
 
+  const securityUser = currentUser
+    ? {
+        id: currentUser.id,
+        name: currentUser.displayName,
+        email: currentUser.email,
+        isAdministrator: currentUser.isAdmin,
+        code: '',
+        version: 0,
+        createEntityDate: '',
+        updateEntityDate: '',
+        createdByUser: '',
+        lastModifiedByUser: '',
+        description: '',
+        actions: [],
+        userName: currentUser.email,
+        password: '',
+        changePasswordOnNextLogin: false,
+        allowPasswordChange: true,
+        allowMultipleLogins: true,
+        passwordNeverExpires: true,
+        accountDeactivated: false,
+        accountLocked: false,
+        unlimitedAccessHours: true,
+        groups: [],
+        type: 'user',
+        isNewUser: false,
+        nickname: currentUser.displayName,
+      }
+    : null
+
   return (
     <ArchbaseGlobalProvider
       colorScheme={colorScheme}
@@ -392,21 +608,23 @@ function App() {
         es: translation_es,
       }}
     >
-      <ArchbaseAppProvider
-        user={currentUser}
-        owner={null}
-        selectedCompany={undefined}
-        variant="filled"
-        setCustomTheme={handleChangeCustomTheme}
-        navigationProvider={ArchbaseNavigationProvider}
-      >
-        <Main
-          onLoginUser={handleLoginUser}
-          onLogoutUser={handleLogoutUser}
+      <ArchbaseSecurityProvider user={securityUser}>
+        <ArchbaseAppProvider
           user={currentUser}
-          setUser={setCurrentUser}
-        />
-      </ArchbaseAppProvider>
+          owner={null}
+          selectedCompany={undefined}
+          variant="filled"
+          setCustomTheme={handleChangeCustomTheme}
+          navigationProvider={ArchbaseNavigationProvider}
+        >
+          <Main
+            onLoginUser={handleLoginUser}
+            onLogoutUser={handleLogoutUser}
+            user={currentUser}
+            setUser={setCurrentUser}
+          />
+        </ArchbaseAppProvider>
+      </ArchbaseSecurityProvider>
     </ArchbaseGlobalProvider>
   )
 }

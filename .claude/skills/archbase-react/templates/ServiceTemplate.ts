@@ -372,3 +372,46 @@ export class EntityRemoteServiceAdvanced extends ArchbaseRemoteApiService<Entity
  *   }
  * }
  */
+
+// =============================================================================
+// MOCK DATA (para desenvolvimento/testes)
+// =============================================================================
+
+/**
+ * Padrão de Mock Data para validação de interface antes do backend estar pronto.
+ *
+ * Crie um arquivo mockData.ts no diretório do módulo:
+ *
+ * ```typescript
+ * // src/domain/entity/mockData.ts
+ *
+ * import { EntityDto } from './EntityDto'
+ *
+ * // Flag para ativar/desativar mocks
+ * export const USAR_MOCK_DATA = true
+ *
+ * export const MOCK_ENTITIES: EntityDto[] = [
+ *   new EntityDto({ id: '1', name: 'Item 1', status: 'ATIVO', isNew: false }),
+ *   new EntityDto({ id: '2', name: 'Item 2', status: 'INATIVO', isNew: false }),
+ * ]
+ *
+ * // Helper para simular delay de rede
+ * export function simulateDelay(): Promise<void> {
+ *   return new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200))
+ * }
+ * ```
+ *
+ * Uso no service:
+ *
+ * ```typescript
+ * import { USAR_MOCK_DATA, MOCK_ENTITIES, simulateDelay } from '../domain/entity/mockData'
+ *
+ * async findAll(): Promise<EntityDto[]> {
+ *   if (USAR_MOCK_DATA) {
+ *     await simulateDelay()
+ *     return [...MOCK_ENTITIES]
+ *   }
+ *   return super.findAll()
+ * }
+ * ```
+ */
