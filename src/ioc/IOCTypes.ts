@@ -23,24 +23,10 @@ export const API_TYPE = {
   ApiToken: ARCHBASE_IOC_API_TYPE.ApiToken,
 
   // ============================================
-  // BlueVix Admin Services
+  // Serviços customizados do projeto
+  // Adicione seus serviços aqui
   // ============================================
-  AlunoService: Symbol.for('AlunoService'),
-  TreinoService: Symbol.for('TreinoService'),
-  ExercicioService: Symbol.for('ExercicioService'),
-  AlertaService: Symbol.for('AlertaService'),
-  DesafioService: Symbol.for('DesafioService'),
-  IAService: Symbol.for('IAService'),
-  ProgressaoService: Symbol.for('ProgressaoService'),
-
-  // ============================================
-  // Financeiro Services
-  // ============================================
-  PlanoService: Symbol.for('PlanoService'),
-  AssinaturaService: Symbol.for('AssinaturaService'),
-  FaturaService: Symbol.for('FaturaService'),
-  PagamentoService: Symbol.for('PagamentoService'),
-  ContratoService: Symbol.for('ContratoService'),
-  GatewayConfigService: Symbol.for('GatewayConfigService'),
-  FinanceiroFacadeService: Symbol.for('FinanceiroFacadeService'),
+  // Exemplo:
+  // UserService: Symbol.for('UserService'),
+  // ProductService: Symbol.for('ProductService'),
 }

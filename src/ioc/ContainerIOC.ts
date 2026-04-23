@@ -29,10 +29,9 @@ const container = IOCContainer.getContainer()
 // ============================================
 // Configuração do Tenant (multi-tenancy)
 // ============================================
-// Tenant ID padrão do BlueVix
+// Configure o tenant padrão ou remova se não usar multi-tenancy
 ArchbaseTenantManager.getInstance().setCurrentTenant({
-  id: 'b1u3v1x0-0001-4000-a000-000000000001',
-  descricao: 'BlueVix Admin',
+  id: 'default-tenant-id', // Substitua pelo ID do seu tenant
 })
 
 // ============================================
@@ -67,49 +66,11 @@ IOCContainer.registerService(ARCHBASE_IOC_API_TYPE.Authenticator, AppAuthenticat
 container.bind<ArchbaseRemoteApiClient>(API_TYPE.ApiClient).to(ArchbaseAxiosRemoteApiClient)
 
 // ============================================
-// BlueVix Admin Services
+// Registro de Serviços Customizados
+// Adicione seus serviços aqui
 // ============================================
-import { AlunoService } from '../services/AlunoService'
-import { TreinoService } from '../services/TreinoService'
-import { ExercicioService } from '../services/ExercicioService'
-import { AlertaService } from '../services/AlertaService'
-import { DesafioService } from '../services/DesafioService'
-import { IAService } from '../services/IAService'
-import { ProgressaoService } from '../services/ProgressaoService'
-import {
-  PlanoService,
-  AssinaturaService,
-  FaturaService,
-  PagamentoService,
-  ContratoService,
-  GatewayConfigService,
-  FinanceiroFacadeService,
-} from '../services/FinanceiroService'
-
-container.bind<AlunoService>(API_TYPE.AlunoService).to(AlunoService).inSingletonScope()
-container.bind<TreinoService>(API_TYPE.TreinoService).to(TreinoService).inSingletonScope()
-container.bind<ExercicioService>(API_TYPE.ExercicioService).to(ExercicioService).inSingletonScope()
-container.bind<AlertaService>(API_TYPE.AlertaService).to(AlertaService).inSingletonScope()
-container.bind<DesafioService>(API_TYPE.DesafioService).to(DesafioService).inSingletonScope()
-container.bind<IAService>(API_TYPE.IAService).to(IAService).inSingletonScope()
-container.bind<ProgressaoService>(API_TYPE.ProgressaoService).to(ProgressaoService).inSingletonScope()
-
-// ============================================
-// Financeiro Services
-// ============================================
-container.bind<PlanoService>(API_TYPE.PlanoService).to(PlanoService).inSingletonScope()
-container.bind<AssinaturaService>(API_TYPE.AssinaturaService).to(AssinaturaService).inSingletonScope()
-container.bind<FaturaService>(API_TYPE.FaturaService).to(FaturaService).inSingletonScope()
-container.bind<PagamentoService>(API_TYPE.PagamentoService).to(PagamentoService).inSingletonScope()
-container.bind<ContratoService>(API_TYPE.ContratoService).to(ContratoService).inSingletonScope()
-container.bind<GatewayConfigService>(API_TYPE.GatewayConfigService).to(GatewayConfigService).inSingletonScope()
-container.bind<FinanceiroFacadeService>(API_TYPE.FinanceiroFacadeService).to(FinanceiroFacadeService).inSingletonScope()
-
-// ============================================
-// Configuração do Axios Interceptor
-// ============================================
-// Adiciona token e tenant em todas as requisições
-// Faz refresh automático de token em 401
-AppAuthenticator.setupAxiosInterceptor()
+// Exemplo:
+// container.bind<UserService>(API_TYPE.UserService).to(UserService)
+// container.bind<ProductService>(API_TYPE.ProductService).to(ProductService)
 
 export default container

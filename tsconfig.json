@@ -39,10 +39,7 @@
       "@navigation/*": ["src/navigation/*"],
       "@locales/*": ["src/locales/*"],
       "@domain/*": ["src/domain/*"],
-      "@services/*": ["src/services/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@security/*": ["src/security/*"],
-      "@contexts/*": ["src/contexts/*"]
+      "@services/*": ["src/services/*"]
     }
   },
   "include": [

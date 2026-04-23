@@ -11,7 +11,7 @@ import { FallbackProps } from 'react-error-boundary'
 export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   return (
     <Container size="md" py="xl" className="min-h-screen flex items-center">
-      <Paper p="xl" radius="md" withBorder w="100%">
+      <Paper shadow="md" p="xl" radius="md" withBorder w="100%">
         <Stack align="center" gap="md">
           <Title order={1} c="red">
             Oops! Algo deu errado

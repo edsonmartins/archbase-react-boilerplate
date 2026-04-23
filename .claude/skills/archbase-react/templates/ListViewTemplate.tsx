@@ -12,12 +12,10 @@
  * - API_TYPE.Entity -> Tipo IoC do service
  */
 
-import { ReactNode, useMemo, useState, useRef, useCallback } from 'react'
-import { Paper, TextInput, Select, Switch, Chip, Group } from '@mantine/core'
-import { useDebouncedCallback } from '@mantine/hooks'
+import { ReactNode, useMemo, useState, useRef } from 'react'
+import { Paper } from '@mantine/core'
 import { uniqueId } from 'lodash'
 import { t } from 'i18next'
-import { IconSearch, IconFilter } from '@tabler/icons-react'
 import {
   useArchbaseRemoteServiceApi,
   useArchbaseRemoteDataSource,
@@ -37,10 +35,6 @@ import {
   ArchbaseGridRowActions,
   UserRowActionsOptions
 } from 'archbase-react'
-import { ArchbaseViewSecurityProvider } from '@archbase/security'
-
-// TODO: Importar do seu projeto
-// import { useSecureActions } from '@hooks/useSecureActions'
 
 // TODO: Importar do seu projeto
 // import { API_TYPE } from '@/ioc/IOCTypes'
@@ -265,57 +259,10 @@ export function EntityListView() {
   }
 
   // ============================================
-  // 10. DEBOUNCED SEARCH PATTERN
-  // ============================================
-
-  const [searchTerm, setSearchTerm] = useState('')
-
-  const handleDebouncedSearch = useDebouncedCallback((value: string) => {
-    if (templateRef.current) {
-      // Construir filtro RSQL
-      const filter = value ? `name=like='${value}'` : ''
-      templateRef.current.setFilter(filter)
-    }
-  }, 300)
-
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
-    handleDebouncedSearch(value)
-  }
-
-  // ============================================
-  // 11. RSQL FILTER BUILDER PATTERN
-  // ============================================
-
-  const buildRsqlFilter = useCallback((params: {
-    search?: string
-    status?: string
-    active?: boolean
-  }): string => {
-    const parts: string[] = []
-
-    if (params.search) {
-      parts.push(`name=like='${params.search}'`)
-    }
-    if (params.status) {
-      parts.push(`status==${params.status}`)
-    }
-    if (params.active !== undefined) {
-      parts.push(`active==${params.active}`)
-    }
-
-    return parts.join(';')
-  }, [])
-
-  // ============================================
-  // 12. RENDER
+  // 10. RENDER
   // ============================================
 
   return (
-    <ArchbaseViewSecurityProvider
-      name="EntityListView"
-      permissions={[]}
-    >
     <Paper ref={containerRef} style={{ overflow: 'none', height: '100%', width: '100%' }}>
       <ArchbaseGridTemplate<EntityDto, string>
         ref={templateRef}
@@ -353,7 +300,6 @@ export function EntityListView() {
         positionActionsColumn={'first'}
       />
     </Paper>
-    </ArchbaseViewSecurityProvider>
   )
 }
 

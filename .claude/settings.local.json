@@ -6,18 +6,7 @@
       "Bash(pnpm type-check:*)",
       "WebSearch",
       "WebFetch(domain:rondesignlab.com)",
-      "WebFetch(domain:hicronsoftware.com)",
-      "Bash(npm run type-check:*)",
-      "Bash(grep:*)",
-      "Bash(npx tsc:*)",
-      "Bash(npm run build:*)",
-      "Bash(timeout 10 npm run dev:*)",
-      "Bash(npx eslint:*)",
-      "Bash(tree:*)",
-      "Bash(lsof:*)",
-      "Bash(npm run lint:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "WebFetch(domain:hicronsoftware.com)"
     ],
     "deny": [],
     "ask": []
