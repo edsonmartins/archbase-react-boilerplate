@@ -1,63 +1,64 @@
 import { MantineThemeOverride, MantineColorsTuple } from '@mantine/core'
 
 /**
- * Paleta de cores primária
+ * BlueVix - Paleta de cores primária (Azul)
  * 10 tons do mais claro ao mais escuro (padrão Mantine)
  */
-const appPrimary: MantineColorsTuple = [
-  '#e7f5ff',
-  '#d0ebff',
-  '#a5d8ff',
-  '#74c0fc',
-  '#4dabf7',
-  '#339af0',
-  '#228be6', // primary
-  '#1c7ed6',
-  '#1971c2',
-  '#1864ab',
+const bluevixBlue: MantineColorsTuple = [
+  '#E3F0FF', // 0 - lightest
+  '#C8DFFA', // 1
+  '#A3C9F5', // 2
+  '#6EACEB', // 3
+  '#4A93E0', // 4
+  '#2A7AD4', // 5
+  '#1A5DAA', // 6 - primary
+  '#0D4A8A', // 7
+  '#0D2E5A', // 8 - dark (navbar color)
+  '#062648', // 9 - darkest
 ]
 
 /**
- * Paleta de cores secundária/accent
+ * BlueVix - Paleta de cores secundária (Teal)
  */
-const appAccent: MantineColorsTuple = [
-  '#e6fcf5',
-  '#c3fae8',
-  '#96f2d7',
-  '#63e6be',
-  '#38d9a9',
-  '#20c997',
-  '#12b886', // accent
-  '#0ca678',
-  '#099268',
-  '#087f5b',
+const bluevixTeal: MantineColorsTuple = [
+  '#E0FAF6', // 0
+  '#C2F5ED', // 1
+  '#8FEADC', // 2
+  '#5CDCC8', // 3
+  '#34CCB3', // 4
+  '#1AB89B', // 5
+  '#14A085', // 6 - accent
+  '#0D8570', // 7
+  '#086B5A', // 8
+  '#003530', // 9
 ]
 
 /**
- * Paleta de cores neutras
+ * BlueVix - Paleta de cores neutras
  */
-const appGray: MantineColorsTuple = [
-  '#f8f9fa',
-  '#e9ecef',
-  '#dee2e6',
-  '#ced4da',
-  '#adb5bd',
-  '#6c757d',
-  '#495057',
-  '#343a40',
-  '#212529',
-  '#1a1f24',
+const bluevixGray: MantineColorsTuple = [
+  '#F8FAFC',
+  '#F1F5F9',
+  '#E2E8F0',
+  '#CBD5E1',
+  '#94A3B8',
+  '#64748B',
+  '#475569',
+  '#334155',
+  '#1E293B',
+  '#0F172A',
 ]
 
 /**
- * Tema claro do aplicativo
+ * Tema claro do BlueVix Admin
  */
 export const AppThemeLight: MantineThemeOverride = {
   primaryColor: 'appPrimary',
   colors: {
-    appPrimary,
-    appAccent,
-    appGray,
+    appPrimary: bluevixBlue,
+    bluevixBlue,
+    bluevixTeal,
+    bluevixGray,
   },
   defaultRadius: 'md',
   fontFamily: 'Inter, system-ui, sans-serif',
@@ -69,11 +70,11 @@ export const AppThemeLight: MantineThemeOverride = {
     AppShell: {
       styles: {
         navbar: {
-          borderRight: '1px solid rgba(0, 0, 0, 0.1)',
-          backgroundColor: '#ffffff',
+          borderRight: 'none',
+          backgroundColor: '#0D2E5A', // Dark navy sidebar
         },
         header: {
-          borderBottom: 'none',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
           backgroundColor: '#ffffff',
         },
       },
@@ -87,7 +88,7 @@ export const AppThemeLight: MantineThemeOverride = {
       styles: {
         root: {
           backgroundColor: '#ffffff',
-          color: '#1a1f24',
+          color: '#1E293B',
         },
       },
     },
@@ -107,29 +108,62 @@ export const AppThemeLight: MantineThemeOverride = {
       styles: {
         root: {
           backgroundColor: '#ffffff',
-          color: '#1a1f24',
+          color: '#1E293B',
         },
+      },
+    },
+    Tabs: {
+      defaultProps: {
+        variant: 'outline',
       },
     },
   },
 }
 
 /**
- * Constantes de cores do aplicativo
+ * Constantes de cores do BlueVix
  * Use para referência rápida em componentes
  */
 export const AppColors = {
-  primary: '#228be6',
-  accent: '#12b886',
-  backgroundDark: '#303841',
-  surface: '#46515e',
-  surfaceDark: '#1a1f24',
-  backgroundLight: '#ffffff',
-  success: '#12b886',
-  error: '#E53E3E',
-  warning: '#FF9500',
-  info: '#228be6',
-  textPrimary: '#1a1f24',
-  textSecondary: '#46515e',
-  gradient: 'linear-gradient(135deg, #228be6 0%, #12b886 100%)',
+  // Primary colors
+  primary: '#1A5DAA',
+  primaryDark: '#0D2E5A',
+  primaryLight: '#4A93E0',
+
+  // Accent/Secondary
+  accent: '#14A085',
+  accentLight: '#34CCB3',
+
+  // Backgrounds
+  navbarBg: '#0D2E5A',
+  headerBg: '#ffffff',
+  backgroundLight: '#F8FAFC',
+  surface: '#ffffff',
+
+  // Status colors
+  success: '#14A085',
+  error: '#DC2626',
+  warning: '#F59E0B',
+  info: '#2563EB',
+
+  // Status aluno
+  statusAtivo: '#14A085',
+  statusTrial: '#F59E0B',
+  statusExpirado: '#DC2626',
+  statusPausado: '#6B7280',
+  statusCancelado: '#991B1B',
+
+  // Níveis de treino
+  nivelIniciante: '#22C55E',
+  nivelIntermediario: '#F59E0B',
+  nivelAvancado: '#EF4444',
+
+  // Text
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+  textOnDark: '#F8FAFC',
+
+  // Gradient
+  gradient: 'linear-gradient(135deg, #1A5DAA 0%, #14A085 100%)',
 } as const

@@ -179,18 +179,34 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
   }, [isAuthenticated, accessToken])
 
   const handleLogin = async (username: string, password: string, rememberMe: boolean) => {
-    try {
-      setCredentialsExpired(null)
-      await loginWithContext({ email: username, password, context: 'WEB_ADMIN' }, rememberMe)
-    } catch (err: any) {
-      const errorData = err?.response?.data || err?.data
-      if (errorData?.error === 'CREDENTIALS_EXPIRED' || err?.message?.includes('CREDENTIALS_EXPIRED')) {
-        setCredentialsExpired({
-          email: errorData?.email || username,
-          message: errorData?.message || 'Sua senha expirou. Por favor, redefina sua senha para continuar.',
-        })
+    console.log('🔐 App.tsx handleLogin chamado')
+    console.log('📧 Username:', username)
+    console.log('🔑 loginWithContext existe?', !!loginWithContext)
+
+    setCredentialsExpired(null)
+    if (loginWithContext) {
+      try {
+        console.log('📤 Chamando loginWithContext...')
+        const result = await loginWithContext(
+          { email: username, password, context: 'WEB_ADMIN' },
+          rememberMe
+        )
+        console.log('✅ loginWithContext retornou:', result)
+        console.log('🔑 isAuthenticated após login:', isAuthenticated)
+        console.log('🔑 accessToken após login:', !!accessToken)
+      } catch (err: any) {
+        console.error('❌ Erro no loginWithContext:', err)
+        const errorData = err?.response?.data || err?.data
+        if (errorData?.error === 'CREDENTIALS_EXPIRED' || err?.message?.includes('CREDENTIALS_EXPIRED')) {
+          setCredentialsExpired({
+            email: errorData?.email || username,
+            message: errorData?.message || 'Sua senha expirou. Por favor, redefina sua senha para continuar.',
+          })
+        }
+        // Não re-lança o erro para evitar problemas com o componente de login
       }
-      throw err
+    } else {
+      console.error('❌ loginWithContext não está disponível!')
     }
   }
 
@@ -484,6 +500,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
             }
             header={
               <ArchbaseAdminLayoutHeader
+                logo=""
                 user={user}
                 headerActions={headerActions()}
                 navigationData={navigationData}
