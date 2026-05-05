@@ -2,11 +2,11 @@
 
 Este documento fornece contexto para o Claude Code trabalhar eficientemente com este projeto.
 
-**IMPORTANTE**: Esta documentação foi validada contra a biblioteca archbase-react-v3.
+**IMPORTANTE**: Esta documentação foi validada contra a biblioteca archbase-react-v4.
 
 ## Visão Geral
 
-Este é um boilerplate para aplicações React administrativas usando a biblioteca **Archbase React** baseada em **Mantine v8**.
+Este é um boilerplate para aplicações React administrativas usando a biblioteca **Archbase React** baseada em **Mantine v9**.
 
 ## Stack Tecnológica
 
@@ -15,12 +15,15 @@ Este é um boilerplate para aplicações React administrativas usando a bibliote
 | React | 19.x | UI Library |
 | TypeScript | 5.3+ | Type Safety |
 | Vite | 6.x | Build Tool |
-| Mantine | 8.3.6 | UI Components |
-| Archbase React | 3.0.7+ | Framework Admin |
+| Mantine | 9.1.1 | UI Components |
+| Archbase React | 4.0.0 | Framework Admin |
 | Inversify | 6.2 | IoC/DI Container |
 | React Query | 5.x | Data Fetching |
 | i18next | 23.x | Internacionalização |
 | Axios | 1.7+ | HTTP Client |
+| Zustand | 5.x | State Management |
+| ECharts | 6.x | Gráficos |
+| Recharts | 3.x | Gráficos React |
 
 ## Comandos
 
@@ -43,6 +46,8 @@ pnpm type-check       # Verificar tipos TypeScript
 pnpm test             # Rodar testes
 pnpm test:ui          # Testes com UI
 pnpm test:coverage    # Cobertura de testes
+pnpm test:e2e         # Testes E2E com Playwright
+pnpm test:e2e:ui      # Testes E2E com UI
 ```
 
 ## Estrutura do Projeto
@@ -53,6 +58,8 @@ src/
 ├── auth/             # Autenticação (AppAuthenticator, AppUser)
 ├── components/       # Componentes reutilizáveis
 ├── contexts/         # React Contexts
+├── hooks/            # Custom React hooks (useSecureActions)
+├── security/         # Ações de segurança e permissões
 ├── domain/           # DTOs e modelos de domínio
 ├── ioc/              # Container IoC (Inversify)
 │   ├── ContainerIOC.ts   # Configuração do container
@@ -235,6 +242,60 @@ Adicione rotas em `navigation/navigationData.tsx`:
 }
 ```
 
+### 8. ArchbaseSecurityProvider
+
+Envolver `ArchbaseAppProvider` com `ArchbaseSecurityProvider` no App.tsx:
+
+```typescript
+<ArchbaseGlobalProvider ...>
+  <ArchbaseSecurityProvider user={securityUser}>
+    <ArchbaseAppProvider ...>
+      <Main />
+    </ArchbaseAppProvider>
+  </ArchbaseSecurityProvider>
+</ArchbaseGlobalProvider>
+```
+
+### 9. Sidebar Variant
+
+Suporte a 3 variantes de sidebar: `standard`, `rail`, `minimal`:
+
+```typescript
+const [sidebarVariant, setSidebarVariant] = useLocalStorage<'standard' | 'rail' | 'minimal'>({
+  key: 'app-sidebar-variant',
+  defaultValue: 'rail',
+})
+
+<ArchbaseAdminMainLayout
+  sidebarVariant={sidebarVariant}
+  showCollapsedButton={sidebarVariant !== 'minimal'}
+/>
+```
+
+### 10. Meu Perfil Modal
+
+Use `ArchbaseMyProfileModal` do `@archbase/admin`:
+
+```typescript
+import { ArchbaseMyProfileModal } from '@archbase/admin'
+
+<ArchbaseMyProfileModal
+  opened={showMyProfile}
+  handleClose={handleCloseMyProfileModal}
+  userId={user.id}
+  updateUser={handleUpdateUser}
+  options={{ showNickname: false, avatarMaxSizeKB: 100 }}
+/>
+```
+
+### 11. Password Reset
+
+Use `useArchbaseResetPassword` do `@archbase/security`:
+
+```typescript
+const { sendResetPasswordEmail, resetPassword } = useArchbaseResetPassword()
+```
+
 ## Documentação Adicional
 
 Para documentação detalhada sobre componentes Archbase, consulte:
@@ -242,6 +303,8 @@ Para documentação detalhada sobre componentes Archbase, consulte:
 - `.claude/SKILL.md` - Referência completa de componentes
 - `.claude/knowledge/` - Documentação modular por tema
 - `.claude/examples/` - Exemplos de código funcionais
+- `src/hooks/` - Custom hooks (useSecureActions, useBasicSecurity)
+- `src/security/` - Definições de ações de segurança
 
 ## Convenções de Código
 
@@ -306,7 +369,9 @@ Usar `import type { ArchbaseRemoteApiClient }` (com `type`).
 
 ## Links Úteis
 
-- [Mantine v8 Docs](https://mantine.dev/)
+- [Mantine v9 Docs](https://mantine.dev/)
 - [React Query](https://tanstack.com/query)
 - [Inversify](https://inversify.io/)
 - [Tabler Icons](https://tabler-icons.io/)
+- [ECharts](https://echarts.apache.org/)
+- [Zustand](https://zustand-demo.pmnd.rs/)

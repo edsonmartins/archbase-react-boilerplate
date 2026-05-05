@@ -121,6 +121,7 @@ export const AppThemeLight: MantineThemeOverride = {
 export const AppColors = {
   primary: '#228be6',
   accent: '#12b886',
+  blueAccent: '#42A5F5',
   backgroundDark: '#303841',
   surface: '#46515e',
   surfaceDark: '#1a1f24',
@@ -132,4 +133,29 @@ export const AppColors = {
   textPrimary: '#1a1f24',
   textSecondary: '#46515e',
   gradient: 'linear-gradient(135deg, #228be6 0%, #12b886 100%)',
+} as const
+
+/**
+ * Cores por status
+ */
+export const StatusColors = {
+  ativo: AppColors.success,
+  inativo: AppColors.textSecondary,
+  pendente: AppColors.warning,
+  concluido: AppColors.accent,
+  cancelado: AppColors.error,
+  em_andamento: '#38d9a9',
+  agendado: AppColors.info,
+  atrasado: AppColors.error,
+  bloqueado: '#991b1b',
+} as const
+
+/**
+ * Cores por severidade
+ */
+export const SeverityColors = {
+  baixa: AppColors.accent,
+  media: AppColors.warning,
+  alta: AppColors.error,
+  critica: '#991b1b',
 } as const

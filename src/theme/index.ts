@@ -1,2 +1,2 @@
-export { AppThemeLight, AppColors } from './AppThemeLight'
+export { AppThemeLight, AppColors, StatusColors, SeverityColors } from './AppThemeLight'
 export { AppThemeDark } from './AppThemeDark'

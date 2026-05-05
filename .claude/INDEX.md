@@ -1,6 +1,6 @@
 # Documentação Archbase React - Índice
 
-Este índice mapeia toda a documentação disponível para desenvolvimento com Archbase React v3.
+Este índice mapeia toda a documentação disponível para desenvolvimento com Archbase React v4.
 
 ---
 
@@ -25,6 +25,7 @@ Para usar quando precisa fazer algo rapidamente. Exemplos minimalistas e tabelas
 | `10-advanced-patterns.md` | ECharts, KPI Cards, WebSocket | Dashboards avançados |
 | `11-view-patterns.md` | Padrões de views (a criar) | Estrutura de views |
 | `12-dashboard-patterns.md` | Padrões de dashboard (a criar) | Dashboards |
+| `13-atendimento-patterns.md` | Central de Atendimentos, Chat, WebSocket, Mock Data | Atendimentos |
 
 ---
 
@@ -131,5 +132,6 @@ Para lista completa, veja `skills/archbase-react/09-reference.md`.
 
 ---
 
-**Versão:** 3.0.21+
-**Atualizado:** 2026-03-25
+**Versão:** 4.0.0
+**Mantine:** 9.1.1
+**Atualizado:** 2026-05-05
