@@ -46,26 +46,34 @@ export default defineConfig(({ mode }) => {
           manualChunks(id: string) {
             if (!id.includes('node_modules')) return undefined
 
+            // 'vendor' absorve TUDO que importa React/Mantine/Archbase no top-level.
+            // Wrappers React (dockview, @fortune-sheet, recharts) também precisam
+            // ficar aqui — caso contrário disparam TDZ em produção.
+            // Splits separados ficam apenas para libs puramente JS:
+            // - echarts: lib JS sem peer dep de React
+            // - xlsx: utility
+            // - pdf (pdfme/jspdf/html2canvas): rendering puros
+            // - icons (@tabler/icons-react): tree-shaking trata cada ícone
             if (
               id.includes('react-dom') ||
               id.includes('react/') ||
               id.match(/\/react@/) ||
               id.includes('@mantine') ||
               id.includes('@emotion') ||
-              id.includes('@archbase')
+              id.includes('@archbase') ||
+              id.includes('dockview') ||
+              id.includes('@fortune-sheet') ||
+              id.includes('sheet-happens') ||
+              id.includes('recharts')
             ) {
               return 'vendor'
             }
 
             if (id.includes('@tabler/icons')) return 'icons'
-            if (id.includes('echarts') || id.includes('recharts') || id.match(/\/d3-/))
-              return 'charts'
+            if (id.includes('echarts')) return 'echarts'
             if (id.includes('@pdfme') || id.includes('jspdf') || id.includes('html2canvas'))
               return 'pdf'
-            if (id.includes('@fortune-sheet') || id.includes('sheet-happens'))
-              return 'spreadsheet'
             if (id.includes('xlsx')) return 'xlsx'
-            if (id.includes('dockview')) return 'dockview'
 
             return undefined
           },

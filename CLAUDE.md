@@ -368,12 +368,18 @@ Service precisa implementar `getId()` e `isNewRecord()`.
 Usar `import type { ArchbaseRemoteApiClient }` (com `type`).
 
 ### "Cannot access 'X' before initialization" (somente em produção)
-TDZ causado por `manualChunks` separando React/Mantine/Archbase em chunks
-distintos. Esses três precisam ficar no MESMO chunk (`vendor`) — em dev
-o Vite serve módulos não bundleados e mascara o problema. Ver o
-`manualChunks` em `vite.config.ts`: react/react-dom/@mantine/@emotion/@archbase
-devem cair todos em `return 'vendor'`. Apenas libs auto-contidas (icons,
-echarts, pdf, spreadsheet, xlsx, dockview) podem ter chunks dedicados.
+TDZ causado por `manualChunks` separando libs com peer dep de React/Mantine
+em chunks distintos. Em dev o Vite serve módulos não bundleados e mascara
+o problema — só explode na build de produção.
+
+**Regra:** qualquer lib que importa React no top-level (wrappers React) deve
+ficar no chunk `vendor`. Isso inclui obrigatoriamente:
+react-dom, react/, @mantine, @emotion, @archbase, **dockview**,
+**@fortune-sheet**, **recharts**.
+
+Splits dedicados são SEGUROS apenas para libs puramente JS sem peer React:
+echarts, xlsx, pdf (pdfme/jspdf/html2canvas), icons (@tabler/icons-react
+porque tree-shaking trata cada ícone).
 
 ## Links Úteis
 
