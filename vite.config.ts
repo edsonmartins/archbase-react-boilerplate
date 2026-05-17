@@ -46,36 +46,26 @@ export default defineConfig(({ mode }) => {
           manualChunks(id: string) {
             if (!id.includes('node_modules')) return undefined
 
-            // 'vendor' absorve TUDO que importa React/Mantine/Archbase no top-level.
-            // Wrappers React (dockview, @fortune-sheet, recharts) também precisam
-            // ficar aqui — caso contrário disparam TDZ em produção.
-            // Splits separados ficam apenas para libs puramente JS:
-            // - echarts: lib JS sem peer dep de React
-            // - xlsx: utility
-            // - pdf (pdfme/jspdf/html2canvas): rendering puros
-            // - icons (@tabler/icons-react): tree-shaking trata cada ícone
-            if (
-              id.includes('react-dom') ||
-              id.includes('react/') ||
-              id.match(/\/react@/) ||
-              id.includes('@mantine') ||
-              id.includes('@emotion') ||
-              id.includes('@archbase') ||
-              id.includes('dockview') ||
-              id.includes('@fortune-sheet') ||
-              id.includes('sheet-happens') ||
-              id.includes('recharts')
-            ) {
-              return 'vendor'
-            }
-
-            if (id.includes('@tabler/icons')) return 'icons'
-            if (id.includes('echarts')) return 'echarts'
-            if (id.includes('@pdfme') || id.includes('jspdf') || id.includes('html2canvas'))
-              return 'pdf'
+            // Aprendizado após várias iterações de TDZ em produção
+            // (vendor-react → dockview → pdf → echarts):
+            //
+            // QUASE TODA lib do ecossistema React/Mantine/Archbase tem
+            // dependências transitivas para React em algum nível, mesmo
+            // libs que parecem "puramente JS" como echarts (acaba puxando
+            // wrappers via deps transitivas). Splits agressivos quebram em
+            // produção com "Cannot access 'X' before initialization".
+            //
+            // ESTRATÉGIA SEGURA: só faça split de libs que você AUDITOU
+            // pessoalmente serem 100% sem dep transitiva de React.
+            //
+            // Conhecidamente seguras:
+            // - xlsx: parser/encoder de planilhas, zero deps React
+            //
+            // O resto vai pro vendor (~17MB, ~4.7MB gzip). Cache do navegador
+            // elimina o custo nas visitas subsequentes.
             if (id.includes('xlsx')) return 'xlsx'
 
-            return undefined
+            return 'vendor'
           },
         },
       },

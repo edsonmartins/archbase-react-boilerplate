@@ -368,18 +368,21 @@ Service precisa implementar `getId()` e `isNewRecord()`.
 Usar `import type { ArchbaseRemoteApiClient }` (com `type`).
 
 ### "Cannot access 'X' before initialization" (somente em produção)
-TDZ causado por `manualChunks` separando libs com peer dep de React/Mantine
-em chunks distintos. Em dev o Vite serve módulos não bundleados e mascara
-o problema — só explode na build de produção.
+TDZ causado por `manualChunks` separando libs com dependência transitiva
+para React em chunks distintos. Em dev o Vite serve módulos não bundleados
+e mascara o problema — só explode na build de produção.
 
-**Regra:** qualquer lib que importa React no top-level (wrappers React) deve
-ficar no chunk `vendor`. Isso inclui obrigatoriamente:
-react-dom, react/, @mantine, @emotion, @archbase, **dockview**,
-**@fortune-sheet**, **recharts**.
+**Lição aprendida (depois de várias iterações):** mesmo libs que parecem
+puramente JS (`echarts`, `@pdfme`, etc.) acabam puxando wrappers React
+via dependências transitivas. NÃO confie em "essa lib é pura" — confie só
+em libs que você auditou pessoalmente.
 
-Splits dedicados são SEGUROS apenas para libs puramente JS sem peer React:
-echarts, xlsx, pdf (pdfme/jspdf/html2canvas), icons (@tabler/icons-react
-porque tree-shaking trata cada ícone).
+**Regra segura:** mantenha tudo no chunk `vendor` por padrão. Só faça split
+de libs comprovadamente sem dep transitiva de React. Conhecidamente seguras:
+- `xlsx` (parser puro de planilhas)
+
+O custo é vendor grande (~17MB / ~4.7MB gzip) na primeira visita.
+Cache do navegador elimina o custo depois.
 
 ## Links Úteis
 
