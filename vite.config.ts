@@ -26,7 +26,51 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      sourcemap: true
+      sourcemap: mode !== 'production',
+      cssMinify: mode === 'production' ? 'esbuild' : false,
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          // IMPORTANTE: React + React-DOM + Mantine + Archbase precisam ficar
+          // no mesmo chunk para evitar TDZ ("Cannot access 'X' before
+          // initialization") em produção. Esse erro aparece quando helpers
+          // TypeScript (__extends), contextos React e singletons do Archbase
+          // são avaliados em ordem incorreta entre chunks separados.
+          //
+          // Apenas libs pesadas e auto-contidas (icons, charts, pdf, etc.)
+          // saem em chunks dedicados, para melhorar cache.
+          //
+          // NÃO crie chunks separados como vendor-react / vendor-mantine /
+          // vendor-archbase — o bundle quebra em produção (funciona em dev
+          // porque o Vite serve módulos não bundleados).
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return undefined
+
+            if (
+              id.includes('react-dom') ||
+              id.includes('react/') ||
+              id.match(/\/react@/) ||
+              id.includes('@mantine') ||
+              id.includes('@emotion') ||
+              id.includes('@archbase')
+            ) {
+              return 'vendor'
+            }
+
+            if (id.includes('@tabler/icons')) return 'icons'
+            if (id.includes('echarts') || id.includes('recharts') || id.match(/\/d3-/))
+              return 'charts'
+            if (id.includes('@pdfme') || id.includes('jspdf') || id.includes('html2canvas'))
+              return 'pdf'
+            if (id.includes('@fortune-sheet') || id.includes('sheet-happens'))
+              return 'spreadsheet'
+            if (id.includes('xlsx')) return 'xlsx'
+            if (id.includes('dockview')) return 'dockview'
+
+            return undefined
+          },
+        },
+      },
     },
     plugins: [
       react({

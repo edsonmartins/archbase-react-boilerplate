@@ -367,6 +367,14 @@ Service precisa implementar `getId()` e `isNewRecord()`.
 ### "Metadata not found"
 Usar `import type { ArchbaseRemoteApiClient }` (com `type`).
 
+### "Cannot access 'X' before initialization" (somente em produção)
+TDZ causado por `manualChunks` separando React/Mantine/Archbase em chunks
+distintos. Esses três precisam ficar no MESMO chunk (`vendor`) — em dev
+o Vite serve módulos não bundleados e mascara o problema. Ver o
+`manualChunks` em `vite.config.ts`: react/react-dom/@mantine/@emotion/@archbase
+devem cair todos em `return 'vendor'`. Apenas libs auto-contidas (icons,
+echarts, pdf, spreadsheet, xlsx, dockview) podem ter chunks dedicados.
+
 ## Links Úteis
 
 - [Mantine v9 Docs](https://mantine.dev/)
