@@ -9,8 +9,15 @@ import { IconDashboard, IconShield, IconKey, IconUsers, IconUserCircle, IconFold
 
 import { ArchbaseNavigationItem } from '@archbase/admin'
 import { HomeView } from '@views/home/HomeView'
-import { SecurityView } from '@archbase/security-ui'
-import { ApiTokenView } from '@archbase/security-ui'
+// Os nomes exportados pelo pacote são prefixados com `Archbase`. Importar sem o
+// prefixo lança SyntaxError no CARREGAMENTO do módulo — antes de qualquer código
+// rodar —, então o React nunca monta: a aplicação inteira fica em branco, com o
+// #root vazio e NADA no console. É o pior modo de falhar possível para um
+// boilerplate, porque quem clona não vê nem por onde começar a investigar.
+import {
+  ArchbaseSecurityView as SecurityView,
+  ArchbaseApiTokenView as ApiTokenView,
+} from '@archbase/security-ui'
 
 import {
   HOME_ROUTE,

@@ -30,8 +30,20 @@ const container = IOCContainer.getContainer()
 // Configuração do Tenant (multi-tenancy)
 // ============================================
 // Configure o tenant padrão ou remova se não usar multi-tenancy
+// O tenant vai no cabeçalho `X-Tenant-Id` de toda requisição, e o Hibernate
+// acrescenta `where tenant_id = ?` sozinho a partir dele. Precisa casar com
+// `archbase.app.tenant.default.id` do backend.
+//
+// Deixar um literal aqui tem um modo de falhar traiçoeiro: o login devolve
+// "Usuário/senha não encontrados" porque o usuário existe e NÃO É ENCONTRADO
+// naquele tenant. A mensagem manda procurar defeito na credencial, que está
+// certa. Por isso o valor vem de variável de ambiente, e o default é o mesmo
+// que o backend usa.
 ArchbaseTenantManager.getInstance().setCurrentTenant({
-  id: 'default-tenant-id', // Substitua pelo ID do seu tenant
+  id: import.meta.env.VITE_TENANT_ID ?? 'a9f814d2-4dae-41f3-851b-8aa3d4706561',
+  // `descricao` é obrigatório em `ArchbaseTenantInfo`; sem ele o projeto nasce
+  // com erro de tipo.
+  descricao: import.meta.env.VITE_TENANT_NOME ?? 'Tenant padrão',
 })
 
 // ============================================
