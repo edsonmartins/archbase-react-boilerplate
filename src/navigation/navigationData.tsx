@@ -31,21 +31,36 @@ import {
  *
  * Cada item pode ter:
  * - label: texto exibido no menu
- * - icon: ícone do Tabler Icons
+ * - icon: ELEMENTO do ícone — `<IconDashboard />`, não `IconDashboard`
  * - link: rota de navegação
- * - component: componente a ser renderizado
+ * - component: ELEMENTO a renderizar — `<HomeView />`, não `HomeView`
+ * - showInSidebar: OBRIGATÓRIO. A sidebar filtra o item que não o tem
  * - links: subitens do menu (para menus aninhados)
  * - requiredPermissions: permissões necessárias (opcional)
  */
+// Três detalhes que, juntos, deixavam a sidebar VAZIA:
+//
+//   showInSidebar   OBRIGATÓRIO — sem ele a sidebar filtra o item, sem erro
+//   icon            ELEMENTO    — `<IconDashboard />`, não a referência
+//   component       ELEMENTO    — `<HomeView />`, não a referência
+//
+// O primeiro escondia os outros dois: com a sidebar vazia nada era renderizado,
+// então nada quebrava. Assim que os itens apareciam, o ícone do Tabler — um
+// `forwardRef`, isto é um objeto `{$$typeof, render}` — quebrava com "Objects
+// are not valid as a React child", e o componente passado como função não
+// renderizava, deixando a aba abrir vazia.
 export const navigationData: ArchbaseNavigationItem[] = [
   // ============================================
   // Home / Dashboard
   // ============================================
   {
     label: 'Home',
-    icon: IconDashboard,
+    showInSidebar: true,
+    category: 'principal',
+    color: undefined,
+    icon: <IconDashboard />,
     link: HOME_ROUTE,
-    component: HomeView,
+    component: <HomeView />,
   },
 
   // ============================================
@@ -53,19 +68,28 @@ export const navigationData: ArchbaseNavigationItem[] = [
   // ============================================
   {
     label: 'Segurança',
-    icon: IconShield,
+    showInSidebar: true,
+    category: 'principal',
+    color: undefined,
+    icon: <IconShield />,
     links: [
       {
         label: 'Usuários',
-        icon: IconUsers,
+        showInSidebar: true,
+        category: 'principal',
+        color: undefined,
+        icon: <IconUsers />,
         link: USUARIOS_ROUTE,
-        component: SecurityView,
+        component: <SecurityView />,
       },
       {
         label: 'Tokens de API',
-        icon: IconKey,
+        showInSidebar: true,
+        category: 'principal',
+        color: undefined,
+        icon: <IconKey />,
         link: API_TOKENS_ROUTE,
-        component: ApiTokenView,
+        component: <ApiTokenView />,
       },
     ],
   },
