@@ -84,6 +84,9 @@ import {
   ArchbaseNavigationProvider,
 } from '@archbase/admin'
 
+// Logo de exemplo do boilerplate — troque src/assets/images/logo.svg pelo do seu produto.
+import appLogo from '@/assets/images/logo.svg'
+
 declare const __APP_VERSION__: string
 
 type MainProps = {
@@ -523,6 +526,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
             header={
               <ArchbaseAdminLayoutHeader
                 user={user}
+                logo={appLogo}
                 headerActions={headerActions()}
                 navigationData={navigationData}
                 showLanguageSelector={true}

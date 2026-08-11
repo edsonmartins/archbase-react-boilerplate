@@ -133,7 +133,7 @@ export function ArchbaseLogin(props: ArchbaseLoginProps) {
   // Se credenciais expiraram, mostrar tela de reset direto
   if (props.credentialsExpired && view === 'login') {
     return (
-      <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gutter={0}>
+      <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gap={0}>
         <Grid.Col
           span={8}
           style={{
@@ -245,7 +245,7 @@ export function ArchbaseLogin(props: ArchbaseLoginProps) {
   }
 
   return (
-    <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gutter={0}>
+    <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gap={0}>
       <Grid.Col
         span={8}
         style={{
