@@ -1,99 +1,102 @@
-import { MantineThemeOverride, MantineColorsTuple } from '@mantine/core'
+import { MantineThemeOverride } from '@mantine/core'
+import { appBlue, appGreen, appGray, AppTokens } from './palette'
+
+const T = AppTokens.light
 
 /**
- * Paleta de cores primária
- * 10 tons do mais claro ao mais escuro (padrão Mantine)
- */
-const appPrimary: MantineColorsTuple = [
-  '#e7f5ff',
-  '#d0ebff',
-  '#a5d8ff',
-  '#74c0fc',
-  '#4dabf7',
-  '#339af0',
-  '#228be6', // primary
-  '#1c7ed6',
-  '#1971c2',
-  '#1864ab',
-]
-
-/**
- * Paleta de cores secundária/accent
- */
-const appAccent: MantineColorsTuple = [
-  '#e6fcf5',
-  '#c3fae8',
-  '#96f2d7',
-  '#63e6be',
-  '#38d9a9',
-  '#20c997',
-  '#12b886', // accent
-  '#0ca678',
-  '#099268',
-  '#087f5b',
-]
-
-/**
- * Paleta de cores neutras
- */
-const appGray: MantineColorsTuple = [
-  '#f8f9fa',
-  '#e9ecef',
-  '#dee2e6',
-  '#ced4da',
-  '#adb5bd',
-  '#6c757d',
-  '#495057',
-  '#343a40',
-  '#212529',
-  '#1a1f24',
-]
-
-/**
- * Tema claro do aplicativo
+ * Tema claro — mesma linguagem visual do Gestor-RQ e do VendaX Promoter, com o
+ * matiz no azul: primária como cor de marca, superfícies levemente tingidas,
+ * cantos de 16px e sombra difusa na cor da marca.
+ *
+ * A sidebar e os destaques do `ArchbaseAdminMainLayout` derivam da cor primária
+ * do tema, então trocar a paleta em `palette.ts` reveste o layout inteiro.
  */
 export const AppThemeLight: MantineThemeOverride = {
-  primaryColor: 'appPrimary',
+  primaryColor: 'appBlue',
+  primaryShade: 6,
   colors: {
-    appPrimary,
-    appAccent,
+    appBlue,
+    appGreen,
     appGray,
   },
-  defaultRadius: 'md',
+  // `lg` = 16px, o raio padrão da linguagem visual.
+  defaultRadius: 'lg',
+  radius: {
+    xs: '6px',
+    sm: '9px',
+    md: '11px',
+    lg: '16px',
+    xl: '22px',
+  },
   fontFamily: 'Inter, system-ui, sans-serif',
   headings: {
     fontFamily: 'Inter, system-ui, sans-serif',
-    fontWeight: '600',
+    fontWeight: '700',
   },
+  shadows: {
+    xs: '0 4px 14px rgba(23,37,84,.04)',
+    sm: '0 6px 20px rgba(23,37,84,.06)',
+    md: T.shadow,
+    lg: '0 14px 40px rgba(23,37,84,.10)',
+    xl: '0 20px 56px rgba(23,37,84,.12)',
+  },
+  // Os overrides abaixo pintam por CSS var (--app-*), não pelo token literal do
+  // esquema. O valor literal congela a cor do tema vigente no momento em que o
+  // componente renderiza: ao alternar o tema na tela, tudo que não re-renderiza
+  // (as views em cache do keep-alive, por exemplo) fica com as cores do tema
+  // anterior — Paper branco no escuro. A var é resolvida na pintura e segue o
+  // html[data-mantine-color-scheme] sozinha. As variáveis vivem em
+  // src/styles/index.css, definidas para os dois esquemas.
   components: {
     AppShell: {
       styles: {
         navbar: {
-          borderRight: '1px solid rgba(0, 0, 0, 0.1)',
-          backgroundColor: '#ffffff',
+          border: 'none',
+          backgroundImage: AppTokens.sidebarGradient,
+          backgroundColor: AppTokens.blue950,
         },
         header: {
-          borderBottom: 'none',
-          backgroundColor: '#ffffff',
+          borderBottom: '1px solid var(--app-border)',
+          backgroundColor: 'var(--app-surface)',
+        },
+        // O AppShell pinta a área de conteúdo com um cinza próprio, que cobria o
+        // fundo definido no body. Os dois halos precisam vir daqui; 'fixed'
+        // impede que deslizem com o scroll.
+        main: {
+          backgroundColor: 'var(--app-bg)',
+          backgroundImage:
+            'radial-gradient(circle at 85% 8%, rgba(96,165,250,.10), transparent 26%),' +
+            'radial-gradient(circle at 15% 88%, rgba(37,99,235,.06), transparent 28%)',
+          backgroundAttachment: 'fixed',
         },
       },
     },
     Card: {
       defaultProps: {
-        shadow: 'sm',
-        radius: 'md',
+        shadow: 'md',
+        radius: 'lg',
         withBorder: true,
       },
       styles: {
         root: {
-          backgroundColor: '#ffffff',
-          color: '#1a1f24',
+          backgroundColor: 'var(--app-surface)',
+          borderColor: 'var(--app-border)',
+          color: 'var(--app-text)',
+        },
+      },
+    },
+    Paper: {
+      styles: {
+        root: {
+          backgroundColor: 'var(--app-surface)',
+          borderColor: 'var(--app-border)',
+          color: 'var(--app-text)',
         },
       },
     },
     Button: {
       defaultProps: {
-        radius: 'md',
+        radius: 'sm',
       },
     },
     Badge: {
@@ -103,11 +106,12 @@ export const AppThemeLight: MantineThemeOverride = {
         },
       },
     },
-    Paper: {
+    Table: {
       styles: {
-        root: {
-          backgroundColor: '#ffffff',
-          color: '#1a1f24',
+        th: {
+          color: 'var(--app-muted)',
+          fontWeight: 700,
+          backgroundColor: 'var(--app-surface-2)',
         },
       },
     },
@@ -115,28 +119,33 @@ export const AppThemeLight: MantineThemeOverride = {
 }
 
 /**
- * Constantes de cores do aplicativo
- * Use para referência rápida em componentes
+ * Cores nomeadas para uso fora do tema — gráficos, badges de status, textos em
+ * SVG. Alinhadas à paleta azul: `primary` e `info` vêm da própria escala, e
+ * `accent`/`success` do verde de apoio.
+ *
+ * Preferir os tokens do tema (`theme.colors.appBlue[n]`) ou as CSS vars
+ * (`var(--app-*)`) quando houver escolha: estes valores são literais e não
+ * acompanham a troca de esquema.
  */
 export const AppColors = {
-  primary: '#228be6',
+  primary: '#1d4ed8',
   accent: '#12b886',
-  blueAccent: '#42A5F5',
-  backgroundDark: '#303841',
-  surface: '#46515e',
-  surfaceDark: '#1a1f24',
+  blueAccent: '#60a5fa',
+  backgroundDark: '#0f1b2e',
+  surface: '#17253c',
+  surfaceDark: '#0c1524',
   backgroundLight: '#ffffff',
   success: '#12b886',
   error: '#E53E3E',
   warning: '#FF9500',
-  info: '#228be6',
-  textPrimary: '#1a1f24',
-  textSecondary: '#46515e',
-  gradient: 'linear-gradient(135deg, #228be6 0%, #12b886 100%)',
+  info: '#3b82f6',
+  textPrimary: '#0d1420',
+  textSecondary: '#5f728c',
+  gradient: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
 } as const
 
 /**
- * Cores por status
+ * Cores por status.
  */
 export const StatusColors = {
   ativo: AppColors.success,
@@ -151,7 +160,7 @@ export const StatusColors = {
 } as const
 
 /**
- * Cores por severidade
+ * Cores por severidade.
  */
 export const SeverityColors = {
   baixa: AppColors.accent,
