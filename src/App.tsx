@@ -583,6 +583,9 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
               openedTabs={adminStore.openedTabs}
               activeTabId={adminStore.activeTabId}
               navigationData={navigationData}
+              // Sem esta prop a faixa de abas fica no cinza padrão do componente e destoa do resto
+              // — só apareceu ao subir a aplicação e olhar a área logada; nenhum build acusaria.
+              colors={colorScheme === 'dark' ? AppTokens.tabsDark : AppTokens.tabs}
             />
           </ArchbaseAdminMainLayout>
           {user && (
