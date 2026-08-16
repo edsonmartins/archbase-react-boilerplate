@@ -133,7 +133,7 @@ export function ArchbaseLogin(props: ArchbaseLoginProps) {
   // Se credenciais expiraram, mostrar tela de reset direto
   if (props.credentialsExpired && view === 'login') {
     return (
-      <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gutter={0}>
+      <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gap={0}>
         <Grid.Col
           span={8}
           style={{
@@ -245,7 +245,7 @@ export function ArchbaseLogin(props: ArchbaseLoginProps) {
   }
 
   return (
-    <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gutter={0}>
+    <Grid classNames={{ root: classes.gridContainer, inner: classes.gridContainer }} gap={0}>
       <Grid.Col
         span={8}
         style={{
@@ -294,6 +294,25 @@ export function ArchbaseLogin(props: ArchbaseLoginProps) {
                 <Text c="dimmed" size="sm" ta="center" mb="xl">
                   Faca login para acessar o painel administrativo
                 </Text>
+
+                {/*
+                  Credenciais do administrador criado na primeira subida pelo AdminSeedLoader do
+                  backend. Aparece SÓ em desenvolvimento (import.meta.env.DEV): o Vite remove este
+                  bloco do bundle de produção, então não há risco de anunciar credencial em ambiente
+                  publicado — e, fora de desenvolvimento, a senha do seed é aleatória, o que tornaria
+                  a dica falsa além de perigosa.
+                */}
+                {import.meta.env.DEV && (
+                  <Alert color="blue" variant="light" mb="md" title="Ambiente de desenvolvimento">
+                    <Text size="sm">
+                      Primeiro acesso: <b>admin@archbase.com.br</b> / <b>admin</b>
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      Criado automaticamente quando o banco não tem nenhum usuário. Configure em
+                      <code> archbase.boilerplate.seed.admin.*</code>.
+                    </Text>
+                  </Alert>
+                )}
 
                 {props.error && (
                   <Alert icon={<IconAlertCircle size="1rem" />} color="red" mb="md">

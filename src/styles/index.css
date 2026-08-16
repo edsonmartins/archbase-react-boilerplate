@@ -16,6 +16,49 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* ============================================================================
+   Tokens de superfície da paleta (src/theme/palette.ts)
+
+   POR QUE COMO CSS VAR, E NÃO COMO VALOR NO TEMA. Um token literal congela a cor
+   do tema vigente no instante em que o componente renderiza. Ao alternar claro e
+   escuro na tela, tudo que não re-renderiza — as views em cache do keep-alive,
+   por exemplo — fica com as cores do tema anterior, e aparece um Paper branco no
+   escuro. A var é resolvida na pintura e acompanha o
+   html[data-mantine-color-scheme] sozinha.
+
+   Trocar a cor do produto é trocar estes valores junto com palette.ts.
+   ============================================================================ */
+:root {
+  --app-blue-950: #172554;
+  --app-blue-900: #1e3a8a;
+  --app-blue-800: #1e40af;
+  --app-blue-700: #1d4ed8;
+  --app-blue-600: #2563eb;
+  --app-blue-500: #3b82f6;
+  --app-blue-400: #60a5fa;
+  --app-sky: #93c5fd;
+
+  --app-bg: #f4f7fb;
+  --app-surface: #ffffff;
+  --app-surface-2: #f8fafd;
+  --app-surface-3: #eaf1f9;
+  --app-text: #0d1420;
+  --app-muted: #5f728c;
+  --app-border: #dbe6f2;
+}
+
+html[data-mantine-color-scheme='dark'] {
+  --app-bg: #070c16;
+  --app-surface: #0c1524;
+  --app-surface-2: #0f1b2e;
+  --app-surface-3: #17253c;
+  --app-text: #e9f1fb;
+  --app-muted: #93a7c4;
+  --app-border: #1e3252;
+}
+
+/* Fundo com os dois halos azuis. `fixed` evita que deslizem junto com o scroll
+   do conteúdo. */
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -23,6 +66,32 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(circle at 85% 8%, rgba(96, 165, 250, 0.1), transparent 26%),
+    radial-gradient(circle at 15% 88%, rgba(37, 99, 235, 0.06), transparent 28%);
+  background-attachment: fixed;
+  color: var(--app-text);
+}
+
+/* Scrollbar tingida de azul, no lugar dos cinzas neutros do padrão. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-surface-2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--app-surface-3);
+  border-radius: 8px;
+  border: 2px solid var(--app-surface-2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-sky);
 }
 
 code {

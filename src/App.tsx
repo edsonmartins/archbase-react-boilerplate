@@ -44,6 +44,7 @@ import translation_ptbr from '@locales/pt-BR/translation.json'
 import translation_es from '@locales/es/translation.json'
 import containerIOC from '@ioc/ContainerIOC'
 import { AppThemeDark, AppThemeLight } from '@theme/index'
+import { AppTokens } from '@theme/palette'
 import { navigationData } from '@navigation/navigationData'
 import { ErrorFallback } from '@utils/ErrorFallback'
 import { AppUser } from '@auth/AppUser'
@@ -83,6 +84,9 @@ import {
   ArchbaseMyProfileModal,
   ArchbaseNavigationProvider,
 } from '@archbase/admin'
+
+// Logo de exemplo do boilerplate — troque src/assets/images/logo.svg pelo do seu produto.
+import appLogo from '@/assets/images/logo.svg'
 
 declare const __APP_VERSION__: string
 
@@ -337,10 +341,35 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
             sideBarCollapsedSubmenuWidth={300}
             sideBarTextDarkColor="white"
             sideBarTextLightColor="white"
-            sideBarIconDarkColor="white"
-            sideBarIconLightColor="white"
-            sideBarBackgroundDarkColor={theme.colors.appPrimary[7]}
-            sideBarBackgroundLightColor={theme.colors.appPrimary[7]}
+            // Ícones em azul acinzentado, não na primária: o azul vivo sobre o
+            // fundo escuro fica neon e compete com o item ativo. Contraído o
+            // rótulo some e o ícone fica sozinho — aí o acinzentado lê como
+            // desabilitado, então clareia para o branco da pele escura.
+            sideBarIconDarkColor={
+              isCollapsed ? AppTokens.sidebarIconCollapsed : AppTokens.sidebarIcon
+            }
+            sideBarIconLightColor={
+              isCollapsed ? AppTokens.sidebarIconCollapsed : AppTokens.sidebarIcon
+            }
+            // Cor sólida de fundo (bordas/fallback) + gradiente da marca.
+            sideBarBackgroundDarkColor={AppTokens.blue950}
+            sideBarBackgroundLightColor={AppTokens.blue950}
+            sideBarBackgroundImage={AppTokens.sidebarGradient}
+            mainBackground={
+              colorScheme === 'dark' ? AppTokens.mainBackgroundDark : AppTokens.mainBackground
+            }
+            // Mesmo raio do `defaultRadius: 'lg'` (16px) do tema: sem isso o
+            // container fica com os 4px padrão do archbase e o conteúdo, mais
+            // arredondado, deixa uma cunha nos cantos de baixo.
+            mainBorderRadius={16}
+            mainBorderColor={
+              colorScheme === 'dark' ? AppTokens.dark.border : AppTokens.light.border
+            }
+            sideBarItemBorderRadius={11}
+            sideBarItemHorizontalGap={10}
+            sideBarItemActiveBackground={AppTokens.sidebarItemActive}
+            highlightActiveMenuItem={true}
+            sidebarActiveColor="appBlue"
             showHeader={isMedium}
             onCollapsedSideBar={setCollapsed}
             onHiddenSidebar={setHidden}
@@ -360,7 +389,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                   <Group
                     py={4}
                     pr={isCollapsed ? 0 : 16}
-                    bg={theme.colors.appPrimary[9]}
+                    bg={theme.colors.appBlue[9]}
                     wrap="nowrap"
                     gap={8}
                     justify={isCollapsed ? 'center' : 'space-between'}
@@ -390,9 +419,9 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                   align="center"
                   justify={isCompact ? 'center' : 'space-between'}
                   style={{
-                    backgroundColor: `color-mix(in srgb, ${theme.colors.appPrimary[7]} 70%, ${theme.colors.appPrimary[9]} 30%)`,
-                    borderTop: `1px solid ${theme.colors.appPrimary[6]}`,
-                    borderBottom: `1px solid ${theme.colors.appPrimary[8]}`,
+                    backgroundColor: `color-mix(in srgb, ${theme.colors.appBlue[7]} 70%, ${theme.colors.appBlue[9]} 30%)`,
+                    borderTop: `1px solid ${theme.colors.appBlue[6]}`,
+                    borderBottom: `1px solid ${theme.colors.appBlue[8]}`,
                   }}
                 >
                   <Menu shadow="md" width={200} position="top-end" withArrow arrowPosition="center" offset={5}>
@@ -472,21 +501,21 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                       <Menu.Item
                         leftSection={<IconLayoutSidebar size={14} />}
                         onClick={() => setSidebarVariant('standard')}
-                        bg={sidebarVariant === 'standard' ? theme.colors.appPrimary[1] : undefined}
+                        bg={sidebarVariant === 'standard' ? theme.colors.appBlue[1] : undefined}
                       >
                         {archbaseI18next.t(`${TRANSLATION_NAME}:Padrão`) || 'Padrão'}
                       </Menu.Item>
                       <Menu.Item
                         leftSection={<IconLayoutSidebarRight size={14} />}
                         onClick={() => setSidebarVariant('rail')}
-                        bg={sidebarVariant === 'rail' ? theme.colors.appPrimary[1] : undefined}
+                        bg={sidebarVariant === 'rail' ? theme.colors.appBlue[1] : undefined}
                       >
                         Rail (Grupos)
                       </Menu.Item>
                       <Menu.Item
                         leftSection={<IconLayoutList size={14} />}
                         onClick={() => setSidebarVariant('minimal')}
-                        bg={sidebarVariant === 'minimal' ? theme.colors.appPrimary[1] : undefined}
+                        bg={sidebarVariant === 'minimal' ? theme.colors.appBlue[1] : undefined}
                       >
                         Minimal (Ícones)
                       </Menu.Item>
@@ -506,7 +535,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                   justify={isCompact ? 'center' : 'space-between'}
                   align="center"
                   px={isCompact ? 4 : 8}
-                  style={{ backgroundColor: theme.colors.appPrimary[8] }}
+                  style={{ backgroundColor: theme.colors.appBlue[8] }}
                   h={48}
                 >
                   {!isCompact || isHidden ? (
@@ -514,7 +543,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
                       {APP_NAME}
                     </Text>
                   ) : null}
-                  <Badge size="sm" color={theme.colors.appPrimary[5]}>
+                  <Badge size="sm" color={theme.colors.appBlue[5]}>
                     {isCompact ? `${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : APP_VERSION}` : `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : APP_VERSION}`}
                   </Badge>
                 </Flex>
@@ -523,6 +552,7 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
             header={
               <ArchbaseAdminLayoutHeader
                 user={user}
+                logo={appLogo}
                 headerActions={headerActions()}
                 navigationData={navigationData}
                 showLanguageSelector={true}
@@ -553,6 +583,9 @@ function Main({ onLoginUser, onLogoutUser, user, setUser }: MainProps) {
               openedTabs={adminStore.openedTabs}
               activeTabId={adminStore.activeTabId}
               navigationData={navigationData}
+              // Sem esta prop a faixa de abas fica no cinza padrão do componente e destoa do resto
+              // — só apareceu ao subir a aplicação e olhar a área logada; nenhum build acusaria.
+              colors={colorScheme === 'dark' ? AppTokens.tabsDark : AppTokens.tabs}
             />
           </ArchbaseAdminMainLayout>
           {user && (

@@ -13,6 +13,71 @@ O sistema de segurança controla o que cada usuário pode fazer na aplicação:
 
 ---
 
+## ⚠️ O auto-registro de recursos, e o que ele impede no backend
+
+Aquele "registra o recurso" acima não é figura de linguagem: o `ArchbaseSecurityManager` chama
+**`POST /api/v1/resource/register`** ao abrir cada tela, para declarar no banco o recurso e as ações
+que a view usa. Isso acontece para **qualquer usuário**, não só administradores.
+
+**Consequência prática:** esse endpoint é administrativo pela marcação do framework. Se o backend
+ligar
+
+```yaml
+archbase:
+  security:
+    admin-endpoints:
+      policy: admin-only     # NÃO faça isso enquanto usar o auto-registro
+```
+
+então **toda tela quebra com 403 para todo usuário que não seja administrador**. Não é um endpoint
+mal marcado que dá para corrigir isolado: é um endpoint de escrita que faz parte do fluxo normal de
+qualquer usuário.
+
+Aconteceu em produção. O sintoma é confuso — a pessoa loga normalmente e recebe 403 em telas que
+nada têm de administrativas.
+
+Enquanto o auto-registro existir, o backend precisa ficar em `policy: permit`. Isso deixa em aberto
+uma escalação de privilégio conhecida (qualquer autenticado alcança `POST /api/v1/user`), e a saída
+definitiva passa por dar ao auto-registro uma política própria, separada dos demais endpoints
+administrativos.
+
+---
+
+## Tela de Diagnóstico de Acesso
+
+Desde a 4.3.0 o `@archbase/security-ui` traz o `ArchbaseSecurityDiagnosticsView`: panorama, árvore de
+quem tem o quê, simulação de acesso e leitura da trilha de auditoria. **Somente leitura** — nada ali
+altera permissão.
+
+Ela não aparece sozinha; precisa ser registrada na navegação:
+
+```tsx
+import { ArchbaseSecurityDiagnosticsView } from '@archbase/security-ui'
+
+// no item de menu, junto de Usuários e Tokens de API
+{
+  label: 'Diagnóstico de Acesso',
+  icon: <IconShield />,
+  link: DIAGNOSTICO_SEGURANCA_ROUTE,   // ex.: '/seguranca/diagnostico'
+  component: <ArchbaseSecurityDiagnosticsView />,
+  showInSidebar: true,
+}
+```
+
+**Do lado do backend depende de uma chave**, e sem ela o controller nem é registrado:
+
+```yaml
+archbase:
+  security:
+    diagnostics:
+      enabled: true
+```
+
+Sem isso a tela abre e as chamadas voltam **404** — não 403. Se você ver 404 aqui, é a chave, não
+permissão. Mesmo ligada, cada endpoint exige `isAdministrator` por conta própria.
+
+---
+
 ## Componentes Principais
 
 ### 1. ArchbaseSecurityProvider (Global)
