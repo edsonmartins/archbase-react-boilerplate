@@ -137,18 +137,31 @@ export class AppAuthenticator implements ArchbaseAuthenticator {
   }
 
   /**
-   * Atualiza o token de acesso usando o refresh token
+   * Atualiza o token de acesso usando o refresh token.
+   *
+   * O endpoint do archbase-security é `/api/v1/auth/refresh-token` (ArchbaseAuthenticationController), com o corpo
+   * `{ token }`. A rota antiga, `/api/v1/auth/refresh`, não existe (404 "No static resource"): o hook do archbase-react,
+   * que renova 5 min antes de vencer, recebia o erro e encerrava a sessão — todo Admin gerado deste boilerplate perdia a
+   * sessão no vencimento do token. O tenant vai como no login, para backends multitenant.
    */
   public async refreshToken(refresh_token: string): Promise<ArchbaseAccessToken> {
     const withoutToken = true
+    const tenantId = ArchbaseTenantManager.getInstance().currentTenant?.id
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (tenantId) {
+      headers['X-TENANT-ID'] = tenantId
+    }
 
     return this.client.post<RefreshToken, ArchbaseAccessToken>(
-      '/api/v1/auth/refresh',
+      AppAuthenticator.ENDPOINT_DE_REFRESH,
       { token: refresh_token },
-      {},
+      headers,
       withoutToken
     )
   }
+
+  /** O endpoint de renovação do archbase-security. */
+  static readonly ENDPOINT_DE_REFRESH = '/api/v1/auth/refresh-token'
 
   /**
    * Faz logout do usuário
@@ -262,7 +275,7 @@ export class AppAuthenticator implements ArchbaseAuthenticator {
           }
 
           try {
-            const response = await axios.post('/api/v1/auth/refresh', { token: refreshToken })
+            const response = await axios.post(AppAuthenticator.ENDPOINT_DE_REFRESH, { token: refreshToken })
             const newToken = response.data.access_token || response.data.token
             localStorage.setItem('accessToken', newToken)
             if (response.data.refresh_token || response.data.refreshToken) {
