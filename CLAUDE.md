@@ -15,8 +15,8 @@ Este é um boilerplate para aplicações React administrativas usando a bibliote
 | React | 19.x | UI Library |
 | TypeScript | 5.3+ | Type Safety |
 | Vite | 6.x | Build Tool |
-| Mantine | 9.1.1 | UI Components |
-| Archbase React | 4.0.0 | Framework Admin |
+| Mantine | 9.7.2 | UI Components |
+| Archbase React | 4.13.2 | Framework Admin |
 | Inversify | 6.2 | IoC/DI Container |
 | React Query | 5.x | Data Fetching |
 | i18next | 23.x | Internacionalização |
