@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: mode !== 'production',
       cssMinify: mode === 'production' ? 'esbuild' : false,
       chunkSizeWarningLimit: 1500,
-      rollupOptions: {
+      rolldownOptions: {
         output: {
           // IMPORTANTE: React + React-DOM + Mantine + Archbase precisam ficar
           // no mesmo chunk para evitar TDZ ("Cannot access 'X' before
@@ -43,29 +43,37 @@ export default defineConfig(({ mode }) => {
           // NÃO crie chunks separados como vendor-react / vendor-mantine /
           // vendor-archbase — o bundle quebra em produção (funciona em dev
           // porque o Vite serve módulos não bundleados).
-          manualChunks(id: string) {
-            if (!id.includes('node_modules')) return undefined
-
-            // Aprendizado após várias iterações de TDZ em produção
-            // (vendor-react → dockview → pdf → echarts):
-            //
-            // QUASE TODA lib do ecossistema React/Mantine/Archbase tem
-            // dependências transitivas para React em algum nível, mesmo
-            // libs que parecem "puramente JS" como echarts (acaba puxando
-            // wrappers via deps transitivas). Splits agressivos quebram em
-            // produção com "Cannot access 'X' before initialization".
-            //
-            // ESTRATÉGIA SEGURA: só faça split de libs que você AUDITOU
-            // pessoalmente serem 100% sem dep transitiva de React.
-            //
-            // Conhecidamente seguras:
-            // - xlsx: parser/encoder de planilhas, zero deps React
-            //
-            // O resto vai pro vendor (~17MB, ~4.7MB gzip). Cache do navegador
-            // elimina o custo nas visitas subsequentes.
-            if (id.includes('xlsx')) return 'xlsx'
-
-            return 'vendor'
+          //
+          // Vite 8 (Rolldown): a função `manualChunks` virou camada de compatibilidade de um
+          // grupo só, e nela o vendor puxava junto as dependências que capturava — o xlsx ia
+          // parar dentro do vendor. Com dois grupos e prioridade, o xlsx é capturado antes e
+          // continua no seu chunk, como no Vite 6.
+          codeSplitting: {
+            groups: [
+              // Aprendizado após várias iterações de TDZ em produção
+              // (vendor-react → dockview → pdf → echarts):
+              //
+              // QUASE TODA lib do ecossistema React/Mantine/Archbase tem
+              // dependências transitivas para React em algum nível, mesmo
+              // libs que parecem "puramente JS" como echarts (acaba puxando
+              // wrappers via deps transitivas). Splits agressivos quebram em
+              // produção com "Cannot access 'X' before initialization".
+              //
+              // ESTRATÉGIA SEGURA: só faça split de libs que você AUDITOU
+              // pessoalmente serem 100% sem dep transitiva de React.
+              //
+              // Conhecidamente seguras:
+              // - xlsx: parser/encoder de planilhas, zero deps React
+              //
+              // O resto vai pro vendor (~17MB, ~4.7MB gzip). Cache do navegador
+              // elimina o custo nas visitas subsequentes.
+              {
+                name: 'xlsx',
+                test: (id: string) => id.includes('node_modules') && id.includes('xlsx'),
+                priority: 2,
+              },
+              { name: 'vendor', test: /node_modules/, priority: 1 },
+            ],
           },
         },
       },
