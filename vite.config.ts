@@ -71,13 +71,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      react({
-        babel: {
-          parserOpts: {
-            plugins: ['decorators-legacy', 'classProperties'],
-          },
-        },
-      }),
+      // plugin-react 6 não aceita mais a opção `babel`. Os decorators passam a ser compilados
+      // pelo Oxc a partir do tsconfig (`experimentalDecorators`, saída legada).
+      react(),
       copy({
         targets: [
           {
@@ -88,6 +84,12 @@ export default defineConfig(({ mode }) => {
         verbose: true,
       }),
     ],
+    // O tsconfig tem `emitDecoratorMetadata: true`. O esbuild do Vite 6 ignorava a opção; o Oxc
+    // (Vite 8) a respeita e passaria a emitir `design:type`/`design:paramtypes`. Desligamos para
+    // manter o comportamento atual de inversify/class-transformer.
+    oxc: {
+      decorator: { legacy: true, emitDecoratorMetadata: false },
+    },
     test: {
       globals: true,
       environment: 'jsdom',
@@ -96,18 +98,18 @@ export default defineConfig(({ mode }) => {
     base: '/',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@components': path.resolve(__dirname, './src/components'),
-        '@views': path.resolve(__dirname, './src/views'),
-        '@utils': path.resolve(__dirname, './src/utils'),
-        '@types': path.resolve(__dirname, './src/types'),
-        '@theme': path.resolve(__dirname, './src/theme'),
-        '@auth': path.resolve(__dirname, './src/auth'),
-        '@ioc': path.resolve(__dirname, './src/ioc'),
-        '@navigation': path.resolve(__dirname, './src/navigation'),
-        '@locales': path.resolve(__dirname, './src/locales'),
-        '@domain': path.resolve(__dirname, './src/domain'),
-        '@services': path.resolve(__dirname, './src/services'),
+        '@': path.resolve(import.meta.dirname, './src'),
+        '@components': path.resolve(import.meta.dirname, './src/components'),
+        '@views': path.resolve(import.meta.dirname, './src/views'),
+        '@utils': path.resolve(import.meta.dirname, './src/utils'),
+        '@types': path.resolve(import.meta.dirname, './src/types'),
+        '@theme': path.resolve(import.meta.dirname, './src/theme'),
+        '@auth': path.resolve(import.meta.dirname, './src/auth'),
+        '@ioc': path.resolve(import.meta.dirname, './src/ioc'),
+        '@navigation': path.resolve(import.meta.dirname, './src/navigation'),
+        '@locales': path.resolve(import.meta.dirname, './src/locales'),
+        '@domain': path.resolve(import.meta.dirname, './src/domain'),
+        '@services': path.resolve(import.meta.dirname, './src/services'),
       },
     },
   }
